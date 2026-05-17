@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>Потери на кухне — Участник</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{background:#08152A;font-family:'Arial Black',Arial,sans-serif;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:16px}
+.screen{width:100%;max-width:460px;display:none;flex-direction:column;align-items:center;gap:14px}
+.screen.on{display:flex}
+/* ─ LOBBY ─ */
+.logo{font-size:48px;line-height:1}
+.title{font-size:20px;font-weight:900;text-align:center;letter-spacing:.03em}
+.sub{font-size:11px;color:#5C7A99;letter-spacing:.2em;text-align:center}
+.inp{width:100%;padding:15px 16px;background:#0F2040;border:2px solid #1A3055;border-radius:13px;font-size:17px;color:#fff;font-family:inherit;outline:none;text-align:center;transition:border-color .2s}
+.inp:focus{border-color:#3b82f6}
+.inp::placeholder{color:#3a5070}
+.btn{width:100%;padding:16px;border:none;border-radius:13px;font-size:18px;color:#fff;font-family:inherit;font-weight:900;cursor:pointer;letter-spacing:.05em;transition:transform .1s,background .15s;-webkit-tap-highlight-color:transparent}
+.btn:active{transform:scale(.97)}
+.btn-red{background:#C0392B}.btn-red:active{background:#a93226}
+.btn-green{background:#27AE60}.btn-green:active{background:#219150}
+.btn-blue{background:#2980B9}.btn-blue:active{background:#1f6691}
+/* ─ WAITING ─ */
+.big-emoji{font-size:60px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
+.wname{font-size:17px;color:#C8DEFF;text-align:center}
+.wmsg{font-size:13px;color:#5C7A99;letter-spacing:.12em;text-align:center}
+.pill{background:#0F2040;border:1px solid #1A3055;border-radius:50px;padding:7px 18px;font-size:12px;color:#5C7A99;letter-spacing:.1em}
+/* ─ STEP HEADER ─ */
+.step-phase{font-size:10px;color:#C0392B;letter-spacing:.28em;text-align:center}
+.step-num{font-size:10px;color:#3a5070;letter-spacing:.2em;text-align:center}
+.step-q{font-size:18px;color:#fff;text-align:center;line-height:1.35;font-weight:700;background:#0F2040;border-radius:14px;padding:18px 16px;width:100%;border:1px solid #1A3055}
+/* ─ CHOICE BUTTONS ─ */
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%}
+.opt{padding:0;border:none;border-radius:13px;font-family:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .1s,opacity .15s;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;aspect-ratio:1.65}
+.opt:active{transform:scale(.95)}
+.opt.A{background:#E74C3C}.opt.B{background:#2980B9}.opt.C{background:#F39C12}.opt.D{background:#27AE60}
+.opt .ltr{font-size:22px;font-weight:900;color:#fff}
+.opt .txt{font-size:11px;color:rgba(255,255,255,.92);padding:0 8px;text-align:center;font-weight:700;line-height:1.25}
+.opt.sel{box-shadow:0 0 0 3px #fff;transform:scale(1.04)}
+.opt.dim{opacity:.4;pointer-events:none}
+.opt.ok{box-shadow:0 0 0 3px #4ade80;background:#27AE60!important}
+.opt.no{box-shadow:0 0 0 3px #f87171;background:#7f1d1d!important;opacity:.7}
+/* ─ NUMBER INPUT ─ */
+.num-wrap{width:100%;position:relative}
+.num-inp{width:100%;padding:18px 50px 18px 18px;background:#0F2040;border:2px solid #1A3055;border-radius:13px;font-size:22px;font-weight:900;color:#4ade80;font-family:inherit;outline:none;text-align:center;transition:border-color .2s;-moz-appearance:textfield}
+.num-inp::-webkit-outer-spin-button,.num-inp::-webkit-inner-spin-button{-webkit-appearance:none}
+.num-inp:focus{border-color:#4ade80}
+.num-inp::placeholder{color:#3a5070;font-size:16px;font-weight:400}
+.num-unit{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:#4ade80;opacity:.5;font-size:14px;pointer-events:none}
+.field-label{font-size:11px;color:#5C7A99;letter-spacing:.15em;text-align:center;width:100%}
+/* ─ MULTI ─ */
+.multi-list{width:100%;display:flex;flex-direction:column;gap:8px}
+.mfield{background:#0C1D35;border:1px solid #1e3a5f;border-radius:11px;padding:10px 14px}
+.mfield-top{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.mfield-icon{font-size:18px}
+.mfield-label{font-size:11px;color:#94a3b8;letter-spacing:.1em;font-weight:700}
+.mfield-inp{width:100%;padding:9px 40px 9px 12px;background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.25);border-radius:8px;font-size:15px;font-weight:700;color:#f87171;font-family:inherit;outline:none;-moz-appearance:textfield;transition:border-color .2s}
+.mfield-inp::-webkit-outer-spin-button,.mfield-inp::-webkit-inner-spin-button{-webkit-appearance:none}
+.mfield-inp:focus{border-color:rgba(248,113,113,.7)}
+.mfield-inp::placeholder{color:#3a5070;font-weight:400;font-size:13px}
+.mfield-wrap{position:relative}
+.mfield-unit{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:#f87171;opacity:.4;font-size:11px;pointer-events:none}
+/* ─ SUBMITTED ─ */
+.sub-icon{font-size:72px;animation:pop .3s ease}
+@keyframes pop{0%{transform:scale(.4)}70%{transform:scale(1.18)}100%{transform:scale(1)}}
+.sub-text{font-size:20px;font-weight:900;text-align:center}
+.sub-hint{font-size:13px;color:#5C7A99;text-align:center;letter-spacing:.1em}
+.score-bg{background:linear-gradient(135deg,#C0392B,#E74C3C);border-radius:50px;padding:10px 28px;font-size:22px;font-weight:900}
+/* ─ REVEAL ─ */
+.reveal-big{font-size:48px;text-align:center}
+.reveal-msg{font-size:18px;font-weight:900;text-align:center;line-height:1.35}
+.reveal-sub{font-size:12px;color:#5C7A99;text-align:center;letter-spacing:.12em}
+.dots::after{content:'';animation:dt 1.5s infinite}
+@keyframes dt{0%{content:'.'}33%{content:'..'}66%{content:'...'}100%{content:''}}
+</style>
+</head>
+<body>
+<!-- LOBBY -->
+<div class="screen on" id="s-lobby">
+  <div class="logo">🍳</div>
+  <div class="title">ПОТЕРИ НА КУХНЕ</div>
+  <div class="sub">ИНТЕРАКТИВНАЯ СЕССИЯ</div>
+  <input class="inp" id="iName" placeholder="Название заведения" maxlength="40" autocomplete="off"/>
+  <input class="inp" id="iCity" placeholder="Город (необязательно)" maxlength="30" autocomplete="off"/>
+  <button class="btn btn-red" onclick="doJoin()">ВОЙТИ →</button>
+</div>
+
+<!-- WAITING -->
+<div class="screen" id="s-wait">
+  <div class="big-emoji">⏳</div>
+  <div class="wname" id="w-name"></div>
+  <div class="wmsg">Ждём начала сессии<span class="dots"></span></div>
+  <div class="pill" id="w-count">👥 0 участников</div>
+  <div style="font-size:10px;color:#3a5070;text-align:center;letter-spacing:.1em">Не закрывай экран</div>
+</div>
+
+<!-- STEP: CHOICE (poll/quiz) -->
+<div class="screen" id="s-choice">
+  <div class="step-phase" id="c-phase"></div>
+  <div class="step-num" id="c-num"></div>
+  <div class="step-q" id="c-text"></div>
+  <div class="opts" id="c-opts"></div>
+</div>
+
+<!-- STEP: SINGLE INPUT -->
+<div class="screen" id="s-input">
+  <div class="step-phase" id="i-phase"></div>
+  <div class="step-num" id="i-num"></div>
+  <div class="step-q" id="i-text"></div>
+  <div class="field-label" id="i-label"></div>
+  <div class="num-wrap">
+    <input class="num-inp" id="i-inp" type="number" placeholder="Введите сумму"/>
+    <span class="num-unit">₽</span>
+  </div>
+  <button class="btn btn-green" onclick="submitInput()">ОТПРАВИТЬ ✓</button>
+</div>
+
+<!-- STEP: MULTI INPUT -->
+<div class="screen" id="s-multi">
+  <div class="step-phase" id="m-phase"></div>
+  <div class="step-num" id="m-num"></div>
+  <div class="step-q" id="m-text"></div>
+  <div class="multi-list" id="m-fields"></div>
+  <button class="btn btn-green" onclick="submitMulti()">ОТПРАВИТЬ ВСЁ ✓</button>
+</div>
+
+<!-- SUBMITTED (waiting for next step) -->
+<div class="screen" id="s-sub">
+  <div class="sub-icon" id="sub-icon">✅</div>
+  <div class="sub-text" id="sub-text">Данные приняты!</div>
+  <div class="sub-hint">Ждём следующего шага<span class="dots"></span></div>
+  <div class="score-bg" id="sub-score">0 очков</div>
+</div>
+
+<!-- REVEAL -->
+<div class="screen" id="s-reveal">
+  <div class="reveal-big">📊</div>
+  <div class="reveal-msg">Смотри на большой экран!</div>
+  <div class="reveal-sub">Данные всех участников<br>сейчас выводятся на экран</div>
+</div>
+
+<script>
+const socket = io();
+const LETTERS = ["A","B","C","D"];
+let myName="", myScore=0, submitted=false, currentStepId=-1;
+
+function show(id){document.querySelectorAll(".screen").forEach(s=>s.classList.remove("on"));document.getElementById(id).classList.add("on")}
+function fmt(v){return v?Number(v).toLocaleString("ru-RU"):"0"}
+
+function doJoin(){
+  const name=document.getElementById("iName").value.trim();
+  if(!name){document.getElementById("iName").focus();return}
+  myName=name;
+  socket.emit("join",{name,city:document.getElementById("iCity").value.trim()});
+  document.getElementById("w-name").textContent="👋 "+name;
+  show("s-wait");
+}
+document.getElementById("iName").addEventListener("keydown",e=>{if(e.key==="Enter")doJoin()});
+
+socket.on("state", d=>{
+  document.getElementById("w-count").textContent="👥 "+d.participantCount+" участников";
+
+  if(d.phase==="lobby"){
+    if(myName) show("s-wait"); else show("s-lobby");
+    return;
+  }
+  if(d.phase==="reveal"){show("s-reveal");return}
+
+  // step phase
+  const step=d.step;
+  if(!step) return;
+
+  // If new step started, reset submitted flag
+  if(step.id!==currentStepId){
+    currentStepId=step.id;
+    submitted=false;
+  }
+
+  if(submitted){show("s-sub");return}
+
+  if(step.type==="poll"||step.type==="quiz"){
+    renderChoice(step,d.stepIndex);
+    if(!submitted) show("s-choice");
+  } else if(step.type==="input"){
+    renderInput(step,d.stepIndex);
+    if(!submitted) show("s-input");
+  } else if(step.type==="multi"){
+    renderMulti(step,d.stepIndex);
+    if(!submitted) show("s-multi");
+  }
+});
+
+socket.on("submitted",({stepId,value,correct})=>{
+  submitted=true;
+  const isQuiz=(correct!==null&&correct!==undefined);
+  const isCorrect=isQuiz&&value===correct;
+  if(isQuiz){
+    if(isCorrect){myScore+=1000;document.getElementById("sub-icon").textContent="✅";document.getElementById("sub-text").textContent="Правильно!"}
+    else{document.getElementById("sub-icon").textContent="❌";document.getElementById("sub-text").textContent="Неверно"}
+  } else {
+    document.getElementById("sub-icon").textContent="✅";
+    document.getElementById("sub-text").textContent="Данные приняты!";
+  }
+  document.getElementById("sub-score").textContent=myScore.toLocaleString("ru-RU")+" очков";
+  show("s-sub");
+});
+
+function renderChoice(step,idx){
+  document.getElementById("c-phase").textContent=step.phase;
+  document.getElementById("c-num").textContent="ШАГ "+(idx+1)+" из 6";
+  document.getElementById("c-text").textContent=step.text;
+  const g=document.getElementById("c-opts");g.innerHTML="";
+  step.options.forEach((opt,i)=>{
+    const b=document.createElement("button");
+    b.className="opt "+LETTERS[i];
+    b.innerHTML=`<span class="ltr">${LETTERS[i]}</span><span class="txt">${opt}</span>`;
+    b.onclick=()=>sendChoice(i,step.id);
+    g.appendChild(b);
+  });
+}
+
+function sendChoice(i,stepId){
+  if(submitted) return;
+  document.querySelectorAll(".opt").forEach((b,bi)=>{b.classList.add("dim");if(bi===i)b.classList.add("sel")});
+  socket.emit("submit",{stepId,value:i});
+}
+
+function renderInput(step,idx){
+  document.getElementById("i-phase").textContent=step.phase;
+  document.getElementById("i-num").textContent="ШАГ "+(idx+1)+" из 6";
+  document.getElementById("i-text").textContent=step.text;
+  document.getElementById("i-label").textContent=step.field.label.toUpperCase();
+  const inp=document.getElementById("i-inp");inp.value="";inp.placeholder=step.field.placeholder||"0";
+  setTimeout(()=>inp.focus(),100);
+}
+
+function submitInput(){
+  const v=parseFloat(document.getElementById("i-inp").value)||0;
+  if(v<=0){document.getElementById("i-inp").focus();return}
+  const step=getCurrentStep();if(!step)return;
+  socket.emit("submit",{stepId:step.id,value:v});
+}
+
+function renderMulti(step,idx){
+  document.getElementById("m-phase").textContent=step.phase;
+  document.getElementById("m-num").textContent="ШАГ "+(idx+1)+" из 6";
+  document.getElementById("m-text").textContent=step.text;
+  const list=document.getElementById("m-fields");list.innerHTML="";
+  step.fields.forEach(f=>{
+    const div=document.createElement("div");div.className="mfield";
+    div.innerHTML=`
+      <div class="mfield-top"><span class="mfield-icon">${f.icon}</span><span class="mfield-label">${f.label.toUpperCase()}</span></div>
+      <div class="mfield-wrap">
+        <input class="mfield-inp" id="mf-${f.key}" type="number" placeholder="0 ₽"/>
+        <span class="mfield-unit">₽</span>
+      </div>`;
+    list.appendChild(div);
+  });
+}
+
+function submitMulti(){
+  const step=getCurrentStep();if(!step)return;
+  const val={};
+  let hasAny=false;
+  step.fields.forEach(f=>{
+    const v=parseFloat(document.getElementById("mf-"+f.key).value)||0;
+    val[f.key]=v;if(v>0)hasAny=true;
+  });
+  socket.emit("submit",{stepId:step.id,value:val});
+}
+
+let _lastStep=null;
+socket.on("state",d=>{_lastStep=d.step});
+function getCurrentStep(){return _lastStep}
+document.getElementById("i-inp").addEventListener("keydown",e=>{if(e.key==="Enter")submitInput()});
+</script>
+</body>
+</html>
