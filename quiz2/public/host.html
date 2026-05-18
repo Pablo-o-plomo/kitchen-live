@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Ведущий — Аудит кухни</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#07111F;font-family:'Courier New',monospace;color:#e2e8f0;min-height:100vh}
+.hdr{background:linear-gradient(90deg,#07111F,#0F2040,#07111F);border-bottom:1px solid #1e3a5f;padding:14px 28px;display:flex;align-items:center;justify-content:space-between}
+.hdr-title{font-size:18px;font-weight:900;letter-spacing:.06em}.hdr-title span{color:#C0392B}
+.pill{background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.25);border-radius:50px;padding:6px 16px;font-size:13px;color:#3b82f6;font-weight:700}
+.main{max-width:900px;margin:0 auto;padding:28px;display:flex;flex-direction:column;gap:20px}
+.card{background:#0C1D35;border:1px solid #1e3a5f;border-radius:14px;padding:24px}
+.lbl{font-size:9px;color:#3b82f6;letter-spacing:.28em;margin-bottom:14px}
+.big{font-size:64px;font-weight:900;color:#C0392B;line-height:1;text-align:center;margin:12px 0}
+.sub{font-size:12px;color:#5C7A99;text-align:center;letter-spacing:.12em}
+.progress-bg{background:#1e3a5f;border-radius:50px;height:10px;overflow:hidden;margin:12px 0}
+.progress-fill{height:100%;background:linear-gradient(90deg,#C0392B,#E74C3C);border-radius:50px;transition:width .4s}
+.prog-nums{display:flex;justify-content:space-between;font-size:11px;color:#5C7A99;margin-top:4px}
+.cbtn{width:100%;padding:16px;border:none;border-radius:12px;font-family:inherit;font-size:15px;font-weight:900;cursor:pointer;letter-spacing:.08em;transition:transform .1s,opacity .15s;margin-bottom:10px}
+.cbtn:hover{opacity:.88}.cbtn:active{transform:scale(.97)}.cbtn:last-child{margin:0}
+.cn{background:#C0392B;color:#fff}
+.cv{background:#8E44AD;color:#fff}
+.cx{background:#1e3a5f;color:#94a3b8;font-size:12px}
+.phase-indicator{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.pi{padding:6px 14px;border-radius:6px;font-size:10px;letter-spacing:.15em;font-weight:700;border:1px solid transparent}
+.pi.active{background:rgba(192,57,43,.15);border-color:rgba(192,57,43,.4);color:#C0392B}
+.pi.done{background:rgba(39,174,96,.1);border-color:rgba(39,174,96,.3);color:#27AE60}
+.pi.idle{background:rgba(255,255,255,.04);border-color:#1e3a5f;color:#475569}
+.instructions{background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15);border-radius:10px;padding:16px;font-size:12px;color:#94a3b8;line-height:1.7}
+.instructions b{color:#e2e8f0}
+a.reveal-link{display:inline-block;padding:10px 20px;background:rgba(192,57,43,.15);border:1px solid rgba(192,57,43,.3);border-radius:8px;color:#C0392B;text-decoration:none;font-size:12px;font-weight:700;letter-spacing:.1em;margin-top:12px}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <div class="hdr-title">ПАНЕЛЬ <span>ВЕДУЩЕГО</span></div>
+  <div class="pill" id="hpill">👥 0 участников</div>
+</div>
+
+<div class="main">
+
+  <!-- Статистика -->
+  <div class="card">
+    <div class="lbl">СТАТИСТИКА СЕССИИ</div>
+    <div class="big" id="bigCount">0</div>
+    <div class="sub" id="bigSub">участников подключились</div>
+    <div class="progress-bg"><div class="progress-fill" id="progFill" style="width:0%"></div></div>
+    <div class="prog-nums"><span id="progNum">0 заполнили данные</span><span id="progPct">0%</span></div>
+  </div>
+
+  <!-- Фаза -->
+  <div class="card">
+    <div class="lbl">ТЕКУЩАЯ ФАЗА</div>
+    <div class="phase-indicator">
+      <div class="pi" id="pi-lobby">📋 ОЖИДАНИЕ</div>
+      <div class="pi" id="pi-collecting">📝 СБОР ДАННЫХ</div>
+      <div class="pi" id="pi-reveal">🎯 ФИНАЛЬНЫЙ ЭКРАН</div>
+    </div>
+    <div class="instructions" id="instructions">
+      Нажми <b>«ОТКРЫТЬ СБОР ДАННЫХ»</b> когда попросишь аудиторию достать телефоны и сканировать QR-код
+    </div>
+  </div>
+
+  <!-- Управление -->
+  <div class="card">
+    <div class="lbl">УПРАВЛЕНИЕ</div>
+    <button class="cbtn cn" id="btnCollect" onclick="hostCollect()">📝 ОТКРЫТЬ СБОР ДАННЫХ</button>
+    <button class="cbtn cv" id="btnReveal" onclick="hostReveal()">🎯 ФИНАЛЬНЫЙ ЭКРАН — ПОКАЗАТЬ ВСЕХ</button>
+    <a class="reveal-link" href="/reveal" target="_blank">↗ Открыть /reveal на проекторе</a>
+    <button class="cbtn cx" style="margin-top:14px" onclick="if(confirm('Сбросить все данные?'))hostReset()">↺ СБРОСИТЬ ВСЁ</button>
+  </div>
+
+  <!-- Инструкция -->
+  <div class="card">
+    <div class="lbl">СЦЕНАРИЙ ВЫСТУПЛЕНИЯ</div>
+    <div class="instructions">
+      <b>1. В начале:</b> показываешь QR-код на экране → нажимаешь «ОТКРЫТЬ СБОР ДАННЫХ» → люди сканируют и вводят данные своего заведения<br><br>
+      <b>2. Во время презентации:</b> они видят свой результат (FC% и отклонение от нормы) прямо на телефоне<br><br>
+      <b>3. В конце:</b> нажимаешь «ФИНАЛЬНЫЙ ЭКРАН» → на проекторе открываешь /reveal → все 50 ресторанов с цифрами на одном экране<br><br>
+      <b>4. Последний слайд:</b> QR на твой Instagram для заявок на сотрудничество
+    </div>
+  </div>
+</div>
+
+<script>
+const socket = io();
+function hostCollect(){ socket.emit("host:collecting") }
+function hostReveal(){  socket.emit("host:reveal") }
+function hostReset(){   socket.emit("host:reset") }
+
+socket.on("state", d => {
+  document.getElementById("hpill").textContent = "👥 "+d.participantCount;
+  document.getElementById("bigCount").textContent = d.participantCount;
+
+  const pct = d.participantCount > 0 ? Math.round(d.submittedCount/d.participantCount*100) : 0;
+  document.getElementById("progFill").style.width = pct+"%";
+  document.getElementById("progNum").textContent = d.submittedCount+" заполнили данные";
+  document.getElementById("progPct").textContent = pct+"%";
+
+  ["lobby","collecting","reveal"].forEach(p => {
+    const el = document.getElementById("pi-"+p);
+    el.className = "pi " + (d.phase === p ? "active" : d.phase === "reveal" && p !== "reveal" ? "done" : d.phase === "collecting" && p === "lobby" ? "done" : "idle");
+  });
+
+  const instr = document.getElementById("instructions");
+  if (d.phase === "lobby") {
+    document.getElementById("bigSub").textContent = "участников подключились";
+    instr.innerHTML = `Нажми <b>«ОТКРЫТЬ СБОР ДАННЫХ»</b> когда попросишь аудиторию достать телефоны`;
+  } else if (d.phase === "collecting") {
+    document.getElementById("bigSub").textContent = `из них заполнили: ${d.submittedCount}`;
+    instr.innerHTML = `<b>Сбор идёт.</b> Участники вводят данные своих заведений.<br>Когда большинство заполнили → проводи презентацию.<br>В конце нажми <b>«ФИНАЛЬНЫЙ ЭКРАН»</b>`;
+  } else if (d.phase === "reveal") {
+    document.getElementById("bigSub").textContent = "данных собрано";
+    instr.innerHTML = `<b>Финальный экран активен!</b><br>Открой <a href="/reveal" target="_blank" style="color:#C0392B">/reveal</a> на проекторе — все рестораны видны`;
+  }
+});
+</script>
+</body>
+</html>
