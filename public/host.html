@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Ведущий</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#07111F;font-family:'Courier New',monospace;color:#e2e8f0;min-height:100vh}
+.hdr{background:linear-gradient(90deg,#07111F,#0F2040,#07111F);border-bottom:1px solid #1e3a5f;padding:12px 24px;display:flex;align-items:center;justify-content:space-between}
+.hdr-title{font-size:17px;font-weight:900;letter-spacing:.06em}.hdr-title span{color:#C0392B}
+.pill{background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.25);border-radius:50px;padding:5px 14px;font-size:12px;color:#3b82f6;font-weight:700}
+.main{display:grid;grid-template-columns:1fr 280px;height:calc(100vh - 48px)}
+.stage{padding:24px;overflow-y:auto;border-right:1px solid #0d1f38;display:flex;flex-direction:column;gap:16px}
+.sidebar{padding:18px;display:flex;flex-direction:column;gap:12px;overflow-y:auto}
+.lbl{font-size:9px;color:#3b82f6;letter-spacing:.28em;margin-bottom:8px}
+.card{background:#0C1D35;border:1px solid #1e3a5f;border-radius:14px;padding:18px}
+/* controls */
+.cbtn{width:100%;padding:13px;border:none;border-radius:11px;font-family:inherit;font-size:13px;font-weight:900;cursor:pointer;letter-spacing:.08em;transition:transform .1s,opacity .15s;margin-bottom:8px}
+.cbtn:last-child{margin-bottom:0}
+.cbtn:hover{opacity:.88}.cbtn:active{transform:scale(.97)}
+.cbtn:disabled{opacity:.3;cursor:default;transform:none!important}
+.cn{background:#C0392B;color:#fff}
+.cr{background:#27AE60;color:#fff}
+.cb{background:#2980B9;color:#fff}
+.cv{background:#8E44AD;color:#fff}
+.cx{background:#1e3a5f;color:#94a3b8;font-size:11px}
+/* progress */
+.prog-bg{background:#1e3a5f;border-radius:50px;height:8px;overflow:hidden;margin:8px 0}
+.prog-fill{height:100%;background:linear-gradient(90deg,#C0392B,#E74C3C);border-radius:50px;transition:width .4s}
+/* answer bars */
+.abar{border-radius:9px;padding:10px 12px;position:relative;overflow:hidden;margin-bottom:8px;min-height:56px}
+.abar.A{background:rgba(231,76,60,.12);border:1px solid rgba(231,76,60,.25)}
+.abar.B{background:rgba(41,128,185,.12);border:1px solid rgba(41,128,185,.25)}
+.abar.C{background:rgba(243,156,18,.12);border:1px solid rgba(243,156,18,.25)}
+.abar.D{background:rgba(39,174,96,.12);border:1px solid rgba(39,174,96,.25)}
+.abar.ok{box-shadow:0 0 0 2px #27AE60}
+.abar .fill{position:absolute;left:0;top:0;bottom:0;border-radius:9px;opacity:.2;transition:width .5s}
+.abar.A .fill{background:#E74C3C}.abar.B .fill{background:#2980B9}
+.abar.C .fill{background:#F39C12}.abar.D .fill{background:#27AE60}
+.abar-row{display:flex;align-items:center;gap:8px;position:relative}
+.abar-badge{width:26px;height:26px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:#fff;flex-shrink:0}
+.A .abar-badge{background:#E74C3C}.B .abar-badge{background:#2980B9}
+.C .abar-badge{background:#F39C12}.D .abar-badge{background:#27AE60}
+.abar-text{font-size:12px;color:#C8DEFF;flex:1}
+.abar-count{font-size:18px;font-weight:900;position:relative}
+.A .abar-count{color:#E74C3C}.B .abar-count{color:#2980B9}
+.C .abar-count{color:#F39C12}.D .abar-count{color:#27AE60}
+.abar-pct{font-size:10px;color:#5C7A99}
+/* step list */
+.sitem{padding:8px 12px;border-radius:7px;font-size:11px;color:#5C7A99;border:1px solid transparent;cursor:default;margin-bottom:5px}
+.sitem.active{background:rgba(192,57,43,.1);border-color:rgba(192,57,43,.3);color:#E74C3C}
+.sitem.done{color:#27AE60}
+/* lobby big */
+.lobby-big{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:12px;text-align:center}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <div class="hdr-title">ПАНЕЛЬ <span>ВЕДУЩЕГО</span></div>
+  <div class="pill" id="hpill">👥 0</div>
+</div>
+<div class="main">
+  <div class="stage" id="stage">
+    <div class="lobby-big" id="vLobby">
+      <div style="font-size:9px;color:#5C7A99;letter-spacing:.28em">ЖДЁМ УЧАСТНИКОВ</div>
+      <div style="font-size:80px;font-weight:900;color:#C0392B;line-height:1" id="lobbyN">0</div>
+      <div style="font-size:11px;color:#5C7A99;letter-spacing:.15em">участников вошли</div>
+    </div>
+    <div id="vStep" style="display:none">
+      <div class="card" style="margin-bottom:16px">
+        <div style="font-size:9px;color:#C0392B;letter-spacing:.25em;margin-bottom:10px" id="sPhase"></div>
+        <div style="font-size:20px;font-weight:900;color:#fff;margin-bottom:14px;line-height:1.35" id="sText"></div>
+        <div id="sAnswers"></div>
+        <!-- progress -->
+        <div class="lbl" style="margin-top:12px">ОТВЕТИЛИ</div>
+        <div class="prog-bg"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#5C7A99;margin-top:4px">
+          <span id="progNum">0 из 0</span><span id="progPct">0%</span>
+        </div>
+      </div>
+    </div>
+    <div id="vReveal" style="display:none;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:10px;text-align:center">
+      <div style="font-size:48px">🎉</div>
+      <div style="font-size:20px;font-weight:900;color:#C0392B">ФИНАЛЬНЫЙ ЭКРАН АКТИВЕН</div>
+      <div style="font-size:13px;color:#5C7A99">Открой /reveal на проекторе</div>
+      <a href="/reveal" target="_blank" style="display:inline-block;padding:12px 28px;background:#C0392B;color:#fff;border-radius:10px;font-weight:900;font-size:14px;text-decoration:none;margin-top:8px">ОТКРЫТЬ БОЛЬШОЙ ЭКРАН →</a>
+    </div>
+  </div>
+  <div class="sidebar">
+    <div>
+      <div class="lbl">УПРАВЛЕНИЕ</div>
+      <button class="cbtn cn" id="bNext" onclick="hostNext()">▶ ЗАПУСТИТЬ ШАГ 1</button>
+      <button class="cbtn cr" id="bRes"  onclick="hostResults()" disabled>📊 ПОКАЗАТЬ ОТВЕТЫ</button>
+      <button class="cbtn cv" id="bRev"  onclick="hostReveal()">🎯 ФИНАЛЬНЫЙ ЭКРАН</button>
+      <button class="cbtn cx" onclick="if(confirm('Сбросить?'))hostReset()">↺ СБРОСИТЬ</button>
+    </div>
+    <div style="height:1px;background:#0d1f38"></div>
+    <div>
+      <div class="lbl">ШАГИ</div>
+      <div id="stepList"></div>
+    </div>
+  </div>
+</div>
+<script>
+const socket=io();
+const STEPS=[
+  {id:0,type:"poll",  phase:"🔥 РАЗМИНКА",   text:"Как контролируете потери?",                     options:["Вручную каждый день","Инвентаризация/мес","Работаем на глаз","Есть автоматизация"],correct:null},
+  {id:1,type:"quiz",  phase:"📦 ПОТЕРИ",      text:"Какой % выручки теряет ресторан?",              options:["3–5%","10–15%","15–30%","Больше 40%"],correct:2},
+  {id:2,type:"input", phase:"💰 ДАННЫЕ",      text:"Выручка за последний месяц",                    field:{key:"vyruchka"}},
+  {id:3,type:"multi", phase:"📊 FOOD COST",   text:"Суммы потерь по категориям",                    fields:[{key:"sebestoimost",label:"Себестоимость"},{key:"porcha",label:"Порча"},{key:"inventar",label:"Инвентаризация"},{key:"brakerage",label:"Бракераж"},{key:"kompliment",label:"Комплименты"},{key:"personal",label:"Персонал"}]},
+  {id:4,type:"quiz",  phase:"❄️ ХРАНЕНИЕ",   text:"Что такое FIFO?",                               options:["Система инвентаризации","First In First Out","Программа учёта","Метод оценки"],correct:1},
+  {id:5,type:"poll",  phase:"🎯 ИТОГ",        text:"Что внедрите первым?",                          options:["Инвентаризацию","Обучение персонала","Систему FC%","Аудит хранения"],correct:null},
+];
+const LETTERS=["A","B","C","D"];
+
+// Build step list
+const sl=document.getElementById("stepList");
+STEPS.forEach((s,i)=>{
+  const d=document.createElement("div");
+  d.className="sitem";d.id="si"+i;
+  const types={poll:"опрос",quiz:"тест",input:"ввод числа",multi:"ввод данных"};
+  d.innerHTML=`<b>${i+1}.</b> ${s.phase} <span style="opacity:.5;font-size:10px">${types[s.type]||s.type}</span>`;
+  sl.appendChild(d);
+});
+
+function hostNext()   {socket.emit("host:next")}
+function hostResults(){socket.emit("host:results")}
+function hostReveal() {socket.emit("host:reveal")}
+function hostReset()  {socket.emit("host:reset")}
+
+socket.on("state",d=>{
+  document.getElementById("hpill").textContent="👥 "+d.participantCount;
+  document.getElementById("lobbyN").textContent=d.participantCount;
+
+  // Step list highlight
+  STEPS.forEach((_,i)=>{
+    const el=document.getElementById("si"+i);
+    el.className="sitem"+(i===d.stepIndex?" active":i<d.stepIndex?" done":"");
+  });
+
+  // Buttons
+  const isLast=d.stepIndex>=STEPS.length-1;
+  document.getElementById("bNext").textContent=
+    d.stepIndex<0?"▶ ЗАПУСТИТЬ ШАГ 1":isLast?"— последний шаг —":"▶ СЛЕДУЮЩИЙ ШАГ "+(d.stepIndex+2);
+  document.getElementById("bNext").disabled=(isLast&&d.phase==="step");
+  document.getElementById("bRes").disabled=!d.step||d.showResults||
+    (d.step.type!=="poll"&&d.step.type!=="quiz");
+
+  if(d.phase==="lobby"){
+    document.getElementById("vLobby").style.display="flex";
+    document.getElementById("vStep").style.display="none";
+    document.getElementById("vReveal").style.display="none";
+    return;
+  }
+  if(d.phase==="reveal"){
+    document.getElementById("vLobby").style.display="none";
+    document.getElementById("vStep").style.display="none";
+    document.getElementById("vReveal").style.display="flex";
+    return;
+  }
+  // step
+  document.getElementById("vLobby").style.display="none";
+  document.getElementById("vStep").style.display="block";
+  document.getElementById("vReveal").style.display="none";
+
+  const step=d.step;
+  if(!step) return;
+  document.getElementById("sPhase").textContent=step.phase+"  •  "+({poll:"ОПРОС",quiz:"ТЕСТ",input:"ВВОД",multi:"ВВОД ДАННЫХ"}[step.type]||"");
+  document.getElementById("sText").textContent=step.text;
+
+  // Answers
+  const sa=document.getElementById("sAnswers");sa.innerHTML="";
+  if((step.type==="poll"||step.type==="quiz")&&d.showResults&&d.results){
+    const {counts,total:t}=d.results;const tot=t||1;
+    step.options.forEach((opt,i)=>{
+      const pct=Math.round(counts[i]/tot*100);
+      const div=document.createElement("div");
+      div.className="abar "+LETTERS[i]+(step.correct===i?" ok":"");
+      div.innerHTML=`<div class="fill" style="width:${pct}%"></div>
+        <div class="abar-row">
+          <div class="abar-badge">${LETTERS[i]}</div>
+          <div class="abar-text">${opt}</div>
+          <div>
+            <div class="abar-count">${counts[i]}</div>
+            <div class="abar-pct">${pct}%</div>
+          </div>
+        </div>`;
+      sa.appendChild(div);
+    });
+  } else if(step.type==="poll"||step.type==="quiz"){
+    sa.innerHTML=`<div style="font-size:12px;color:#3a5070;text-align:center;padding:12px">Нажми «Показать ответы» после голосования</div>`;
+  } else if(step.type==="input"||step.type==="multi"){
+    sa.innerHTML=`<div style="font-size:12px;color:#3a5070;text-align:center;padding:12px">Участники вводят данные...</div>`;
+  }
+
+  // Progress
+  const pct=d.participantCount>0?Math.round(d.submittedCount/d.participantCount*100):0;
+  document.getElementById("progFill").style.width=pct+"%";
+  document.getElementById("progNum").textContent=d.submittedCount+" из "+d.participantCount;
+  document.getElementById("progPct").textContent=pct+"%";
+});
+</script>
+</body>
+</html>
