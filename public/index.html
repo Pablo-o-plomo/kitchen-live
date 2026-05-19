@@ -114,7 +114,7 @@ body{background:#08152A;font-family:'Arial Black',Arial,sans-serif;color:#fff;di
   <div class="field-label" id="i-label"></div>
   <div class="num-wrap">
     <input class="num-inp" id="i-inp" type="number" placeholder="Введите сумму"/>
-    <span class="num-unit">₽</span>
+    <span class="num-unit" id="i-unit">₽</span>
   </div>
   <button class="btn btn-green" onclick="submitInput()">ОТПРАВИТЬ ✓</button>
 </div>
@@ -236,6 +236,7 @@ function renderInput(step,idx){
   document.getElementById("i-text").textContent=step.text;
   document.getElementById("i-label").textContent=step.field.label.toUpperCase();
   const inp=document.getElementById("i-inp");inp.value="";inp.placeholder=step.field.placeholder||"0";
+  document.getElementById("i-unit").textContent=step.field.unit||"₽";
   setTimeout(()=>inp.focus(),100);
 }
 

@@ -12,14 +12,14 @@ const PORT = process.env.PORT || 3000;
 const STEPS = [
   {
     id: 0, type: "poll", phase: "🔥 РАЗМИНКА",
-    text: "Как вы сейчас контролируете потери на кухне?",
-    options: ["Считаем вручную каждый день", "Инвентаризация раз в месяц", "Работаем на глаз", "Есть автоматизация"],
+    text: "Как сейчас у вас устроен контроль потерь на кухне?",
+    options: ["Ежедневный контроль + отчёт", "Еженедельная инвентаризация", "Разовый/нерегулярный контроль", "Автоматизированный учёт (iiko/Poster и т.п.)"],
     correct: null, dataKey: "control_method",
   },
   {
     id: 1, type: "quiz", phase: "📦 ПОТЕРИ",
-    text: "Какой % выручки в среднем теряет ресторан из-за потерь?",
-    options: ["3–5%", "10–15%", "15–30%", "Больше 40%"],
+    text: "Какой диапазон потерь к выручке чаще всего встречается в ресторанах?",
+    options: ["до 3%", "3–7%", "7–15%", "15%+"],
     correct: null, dataKey: "quiz1",
   },
   {
@@ -29,8 +29,8 @@ const STEPS = [
   },
   {
     id: 3, type: "input", phase: "📊 FOOD COST",
-    text: "FC % ИЗ МАРОЧНИКА (в рублях за месяц)",
-    field: { key: "sebestoimost", label: "FC % ИЗ МАРОЧНИКА", placeholder: "300000", unit: "₽" },
+    text: "FC % из марочника (% к выручке)",
+    field: { key: "fc_percent", label: "FC % ИЗ МАРОЧНИКА", placeholder: "28", unit: "%" },
   },
   {
     id: 4, type: "input", phase: "📊 ПОТЕРИ",
@@ -59,14 +59,14 @@ const STEPS = [
   },
   {
     id: 9, type: "quiz", phase: "❄️ ХРАНЕНИЕ",
-    text: "Что такое принцип FIFO на кухне?",
-    options: ["Система инвентаризации", "First In First Out", "Программа учёта", "Метод оценки поставщиков"],
+    text: "Где чаще всего «прячутся» потери в операционке кухни?",
+    options: ["Закупки и входящие цены", "Хранение и порча", "Списания и бракераж", "Во всех зонах сразу"],
     correct: null, dataKey: "quiz2",
   },
   {
     id: 10, type: "poll", phase: "🎤 ПОСЛЕ ВЫСТУПЛЕНИЯ",
-    text: "Что внедрите в первую очередь после сегодняшнего выступления?",
-    options: ["Еженедельную инвентаризацию", "Обучение персонала", "Систему подсчёта FC%", "Аудит зон хранения"],
+    text: "Что внедрите первым после презентации?",
+    options: ["Еженедельную инвентаризацию", "FC-контроль по статьям списания", "Стандарты хранения + FIFO", "Фотофиксацию списаний"],
     correct: null, dataKey: "first_action", postTalk: true,
   },
 ];
@@ -121,7 +121,8 @@ function buildRevealData() {
   return Object.values(state.participants).map(p => {
     const d = p.data || {};
     const rev = parseFloat(d.vyruchka) || 0;
-    const seb = parseFloat(d.sebestoimost) || 0;
+    const fcPercentInput = parseFloat(d.fc_percent) || 0;
+    const seb = fcPercentInput > 0 ? (rev * fcPercentInput / 100) : (parseFloat(d.sebestoimost) || 0);
     const por = parseFloat(d.porcha) || 0;
     const inv = parseFloat(d.inventar) || 0;
     const bra = parseFloat(d.brakerage) || 0;
@@ -136,6 +137,7 @@ function buildRevealData() {
       score: p.score || 0,
       vyruchka: rev,
       sebestoimost: seb,
+      fc_percent: fcPercentInput,
       porcha: por,
       inventar: inv,
       brakerage: bra,
@@ -158,7 +160,8 @@ function seedParticipants(count = 50) {
   for (let i = 1; i <= count; i++) {
     const id = `seed-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`;
     const rev = randomInt(1200000, 6000000);
-    const seb = Math.round(rev * (randomInt(22, 34) / 100));
+    const fcPercent = randomInt(22, 34);
+    const seb = Math.round(rev * (fcPercent / 100));
     const por = randomInt(15000, 180000);
     const inv = randomInt(10000, 120000);
     const bra = randomInt(5000, 70000);
@@ -167,7 +170,7 @@ function seedParticipants(count = 50) {
     state.participants[id] = {
       name: `Тест-ресторан ${i}`,
       city: cities[i % cities.length],
-      data: { vyruchka: rev, sebestoimost: seb, porcha: por, inventar: inv, brakerage: bra, kompliment: kom, personal: per },
+      data: { vyruchka: rev, fc_percent: fcPercent, sebestoimost: seb, porcha: por, inventar: inv, brakerage: bra, kompliment: kom, personal: per },
       score: randomInt(0, 4000),
       stepAnswers: { 0: randomInt(0, 3), 1: randomInt(0, 3), 9: randomInt(0, 3), 10: randomInt(0, 3) },
     };
@@ -237,7 +240,23 @@ io.on("connection", socket => {
     state.stepSubmissions = {};
     broadcast();
   });
-  socket.on("host:results",    () => { state.showResults = true; broadcast(); });
+  socket.on("host:results", () => {
+    state.showResults = true;
+    const current = STEPS[state.stepIndex];
+    if (current && current.postTalk) {
+      state.phase = "reveal";
+    }
+    broadcast();
+  });
+
+  socket.on("host:posttalk:show", () => {
+    const postTalkIndex = STEPS.findIndex(st => st.postTalk);
+    if (postTalkIndex === -1) return;
+    state.stepIndex = postTalkIndex;
+    state.showResults = true;
+    state.phase = "reveal";
+    broadcast();
+  });
   socket.on("host:reveal",     () => { state.phase = "reveal"; broadcast(); });
   socket.on("host:lobby",      () => { state.phase = "lobby"; broadcast(); });
   socket.on("host:seed50", () => {
