@@ -195,9 +195,19 @@ io.on("connection", socket => {
   socket.on("submit", ({ stepId, value }) => {
     const p = state.participants[socket.id];
     if (!p) return;
-    if (state.phase !== "step") return;
-    if (stepId !== state.stepIndex) return;
-    if (state.stepSubmissions[socket.id]) return;
+    if (state.phase !== "step") {
+      socket.emit("submit:rejected", { reason: "phase_closed", stepId, activeStepId: state.stepIndex });
+      return;
+    }
+    if (stepId !== state.stepIndex) {
+      socket.emit("submit:rejected", { reason: "step_changed", stepId, activeStepId: state.stepIndex });
+      return;
+    }
+    if (state.stepSubmissions[socket.id]) {
+      const step = STEPS[state.stepIndex];
+      socket.emit("submitted", { stepId: state.stepIndex, value: p.stepAnswers[state.stepIndex] ?? null, correct: step && step.correct !== null ? step.correct : null, duplicate: true });
+      return;
+    }
     const step = STEPS[stepId];
     if (!step) return;
 
