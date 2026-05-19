@@ -48,10 +48,10 @@ const STEPS = [
     explanation: "FIFO — старый товар берётся первым. Нарушение FIFO = главная причина порчи.",
   },
   {
-    id: 5, type: "poll", phase: "🎯 ИТОГ",
+    id: 5, type: "poll", phase: "🎤 ПОСЛЕ ВЫСТУПЛЕНИЯ",
     text: "Что внедрите в первую очередь после сегодняшнего выступления?",
     options: ["Еженедельную инвентаризацию", "Обучение персонала", "Систему подсчёта FC%", "Аудит зон хранения"],
-    correct: null, dataKey: "first_action",
+    correct: null, dataKey: "first_action", postTalk: true,
   },
 ];
 
@@ -95,6 +95,7 @@ function buildPublic() {
     results,
     participantCount: total,
     submittedCount: submissions,
+    steps: STEPS.map(({ id, type, phase, postTalk }) => ({ id, type, phase, postTalk: !!postTalk })),
     // Reveal data: all participants with their FC data
     revealData: state.phase === "reveal" ? buildRevealData() : null,
   };
@@ -133,6 +134,30 @@ function buildRevealData() {
   }).sort((a, b) => b.fc - a.fc);
 }
 
+
+
+function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function seedParticipants(count = 50) {
+  const cities = ["Москва", "СПб", "Казань", "Екатеринбург", "Новосибирск", "Краснодар"];
+  for (let i = 1; i <= count; i++) {
+    const id = `seed-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`;
+    const rev = randomInt(1200000, 6000000);
+    const seb = Math.round(rev * (randomInt(22, 34) / 100));
+    const por = randomInt(15000, 180000);
+    const inv = randomInt(10000, 120000);
+    const bra = randomInt(5000, 70000);
+    const kom = randomInt(3000, 50000);
+    const per = randomInt(7000, 90000);
+    state.participants[id] = {
+      name: `Тест-ресторан ${i}`,
+      city: cities[i % cities.length],
+      data: { vyruchka: rev, sebestoimost: seb, porcha: por, inventar: inv, brakerage: bra, kompliment: kom, personal: per },
+      score: randomInt(0, 4000),
+      stepAnswers: { 0: randomInt(0, 3), 1: randomInt(0, 3), 4: randomInt(0, 3), 5: randomInt(0, 3) },
+    };
+  }
+}
+
 // ── Socket.io ──────────────────────────────────────────────────
 io.on("connection", socket => {
   socket.emit("state", buildPublic());
@@ -154,6 +179,9 @@ io.on("connection", socket => {
   socket.on("submit", ({ stepId, value }) => {
     const p = state.participants[socket.id];
     if (!p) return;
+    if (state.phase !== "step") return;
+    if (stepId !== state.stepIndex) return;
+    if (state.stepSubmissions[socket.id]) return;
     const step = STEPS[stepId];
     if (!step) return;
 
@@ -177,10 +205,33 @@ io.on("connection", socket => {
   });
 
   // Host controls
-  socket.on("host:next",       () => { state.stepIndex = Math.min(state.stepIndex + 1, STEPS.length - 1); state.phase = "step"; state.showResults = false; state.stepSubmissions = {}; broadcast(); });
+  socket.on("host:next", () => {
+    const nextIndex = STEPS.findIndex((st, idx) => idx > state.stepIndex && !st.postTalk);
+    if (nextIndex === -1) return;
+    state.stepIndex = nextIndex;
+    state.phase = "step";
+    state.showResults = false;
+    state.stepSubmissions = {};
+    broadcast();
+  });
+
+  socket.on("host:posttalk", () => {
+    const postTalkIndex = STEPS.findIndex(st => st.postTalk);
+    if (postTalkIndex === -1) return;
+    state.stepIndex = postTalkIndex;
+    state.phase = "step";
+    state.showResults = false;
+    state.stepSubmissions = {};
+    broadcast();
+  });
   socket.on("host:results",    () => { state.showResults = true; broadcast(); });
   socket.on("host:reveal",     () => { state.phase = "reveal"; broadcast(); });
   socket.on("host:lobby",      () => { state.phase = "lobby"; broadcast(); });
+  socket.on("host:seed50", () => {
+    if (Object.keys(state.participants).length === 0) seedParticipants(50);
+    broadcast();
+  });
+
   socket.on("host:reset",      () => {
     state = { phase: "lobby", stepIndex: -1, showResults: false, participants: {}, stepSubmissions: {} };
     broadcast();
