@@ -150,6 +150,8 @@ socket.on("state",d=>{
   document.getElementById("bNext").disabled=(isMainDone&&d.phase==="step");
   document.getElementById("bRes").disabled=!d.step||d.showResults||
     (d.step.type!=="poll"&&d.step.type!=="quiz");
+  const canShowPost = d.step && d.step.postTalk && d.submittedCount>0;
+  document.getElementById("bShowPost").disabled=!canShowPost;
 
   if(d.phase==="lobby"){
     document.getElementById("vLobby").style.display="flex";
