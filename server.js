@@ -28,25 +28,43 @@ const STEPS = [
     field: { key: "vyruchka", label: "Выручка", placeholder: "2000000", unit: "₽" },
   },
   {
-    id: 3, type: "multi", phase: "📊 FOOD COST",
-    text: "Введите суммы потерь за последний месяц",
-    fields: [
-      { key: "sebestoimost", label: "Себестоимость реализации", icon: "🍽️" },
-      { key: "porcha",       label: "Порча",                    icon: "⚠️" },
-      { key: "inventar",     label: "Отриц. инвентаризация",    icon: "📦" },
-      { key: "brakerage",    label: "Бракераж",                 icon: "🚫" },
-      { key: "kompliment",   label: "Комплименты",              icon: "🎁" },
-      { key: "personal",     label: "Питание персонала",        icon: "👥" },
-    ],
+    id: 3, type: "input", phase: "📊 FOOD COST",
+    text: "FC % ИЗ МАРОЧНИКА (в рублях за месяц)",
+    field: { key: "sebestoimost", label: "FC % ИЗ МАРОЧНИКА", placeholder: "300000", unit: "₽" },
   },
   {
-    id: 4, type: "quiz", phase: "❄️ ХРАНЕНИЕ",
+    id: 4, type: "input", phase: "📊 ПОТЕРИ",
+    text: "Введите Порчу за последний месяц",
+    field: { key: "porcha", label: "Порча", placeholder: "50000", unit: "₽" },
+  },
+  {
+    id: 5, type: "input", phase: "📊 ПОТЕРИ",
+    text: "Введите Отрицательную инвентаризацию за месяц",
+    field: { key: "inventar", label: "Отриц. инвентаризация", placeholder: "30000", unit: "₽" },
+  },
+  {
+    id: 6, type: "input", phase: "📊 ПОТЕРИ",
+    text: "Введите Бракераж за последний месяц",
+    field: { key: "brakerage", label: "Бракераж", placeholder: "20000", unit: "₽" },
+  },
+  {
+    id: 7, type: "input", phase: "📊 ПОТЕРИ",
+    text: "Введите Комплименты за последний месяц",
+    field: { key: "kompliment", label: "Комплименты", placeholder: "10000", unit: "₽" },
+  },
+  {
+    id: 8, type: "input", phase: "📊 ПОТЕРИ",
+    text: "Введите Питание персонала за последний месяц",
+    field: { key: "personal", label: "Питание персонала", placeholder: "25000", unit: "₽" },
+  },
+  {
+    id: 9, type: "quiz", phase: "❄️ ХРАНЕНИЕ",
     text: "Что такое принцип FIFO на кухне?",
     options: ["Система инвентаризации", "First In First Out", "Программа учёта", "Метод оценки поставщиков"],
     correct: null, dataKey: "quiz2",
   },
   {
-    id: 5, type: "poll", phase: "🎤 ПОСЛЕ ВЫСТУПЛЕНИЯ",
+    id: 10, type: "poll", phase: "🎤 ПОСЛЕ ВЫСТУПЛЕНИЯ",
     text: "Что внедрите в первую очередь после сегодняшнего выступления?",
     options: ["Еженедельную инвентаризацию", "Обучение персонала", "Систему подсчёта FC%", "Аудит зон хранения"],
     correct: null, dataKey: "first_action", postTalk: true,
@@ -127,7 +145,7 @@ function buildRevealData() {
       losses,
       fc,
       control_method: p.stepAnswers[0] ?? null,
-      first_action: p.stepAnswers[5] ?? null,
+      first_action: p.stepAnswers[10] ?? null,
     };
   }).sort((a, b) => b.fc - a.fc);
 }
@@ -151,7 +169,7 @@ function seedParticipants(count = 50) {
       city: cities[i % cities.length],
       data: { vyruchka: rev, sebestoimost: seb, porcha: por, inventar: inv, brakerage: bra, kompliment: kom, personal: per },
       score: randomInt(0, 4000),
-      stepAnswers: { 0: randomInt(0, 3), 1: randomInt(0, 3), 4: randomInt(0, 3), 5: randomInt(0, 3) },
+      stepAnswers: { 0: randomInt(0, 3), 1: randomInt(0, 3), 9: randomInt(0, 3), 10: randomInt(0, 3) },
     };
   }
 }
