@@ -94,6 +94,7 @@ body{background:#07111F;font-family:'Courier New',monospace;color:#e2e8f0;min-he
       <button class="cbtn cr" id="bRes"  onclick="hostResults()" disabled>📊 ПОКАЗАТЬ ОТВЕТЫ</button>
       <button class="cbtn cv" id="bRev"  onclick="hostReveal()">🎯 ФИНАЛЬНЫЙ ЭКРАН</button>
       <button class="cbtn cb" id="bPost" onclick="hostPostTalk()" disabled>🗣 ВОПРОС ПОСЛЕ ВЫСТУПЛЕНИЯ</button>
+      <button class="cbtn cb" onclick="hostSeed50()">👥 ДОБАВИТЬ 50 ТЕСТОВ</button>
       <button class="cbtn cx" onclick="if(confirm('Сбросить?'))hostReset()">↺ СБРОСИТЬ</button>
     </div>
     <div style="height:1px;background:#0d1f38"></div>
@@ -124,6 +125,7 @@ function hostNext()   {socket.emit("host:next")}
 function hostResults(){socket.emit("host:results")}
 function hostReveal() {socket.emit("host:reveal")}
 function hostPostTalk(){socket.emit("host:posttalk")}
+function hostSeed50(){socket.emit("host:seed50")}
 function hostReset()  {socket.emit("host:reset")}
 
 socket.on("state",d=>{
