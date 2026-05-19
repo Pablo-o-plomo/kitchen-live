@@ -95,6 +95,7 @@ function buildPublic() {
     results,
     participantCount: total,
     submittedCount: submissions,
+    steps: STEPS.map(({ id, type, phase, postTalk }) => ({ id, type, phase, postTalk: !!postTalk })),
     // Reveal data: all participants with their FC data
     revealData: state.phase === "reveal" ? buildRevealData() : null,
   };
