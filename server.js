@@ -48,10 +48,10 @@ const STEPS = [
     explanation: "FIFO — старый товар берётся первым. Нарушение FIFO = главная причина порчи.",
   },
   {
-    id: 5, type: "poll", phase: "🎯 ИТОГ",
+    id: 5, type: "poll", phase: "🎤 ПОСЛЕ ВЫСТУПЛЕНИЯ",
     text: "Что внедрите в первую очередь после сегодняшнего выступления?",
     options: ["Еженедельную инвентаризацию", "Обучение персонала", "Систему подсчёта FC%", "Аудит зон хранения"],
-    correct: null, dataKey: "first_action",
+    correct: null, dataKey: "first_action", postTalk: true,
   },
 ];
 
@@ -154,6 +154,9 @@ io.on("connection", socket => {
   socket.on("submit", ({ stepId, value }) => {
     const p = state.participants[socket.id];
     if (!p) return;
+    if (state.phase !== "step") return;
+    if (stepId !== state.stepIndex) return;
+    if (state.stepSubmissions[socket.id]) return;
     const step = STEPS[stepId];
     if (!step) return;
 
@@ -177,7 +180,25 @@ io.on("connection", socket => {
   });
 
   // Host controls
-  socket.on("host:next",       () => { state.stepIndex = Math.min(state.stepIndex + 1, STEPS.length - 1); state.phase = "step"; state.showResults = false; state.stepSubmissions = {}; broadcast(); });
+  socket.on("host:next", () => {
+    const nextIndex = STEPS.findIndex((st, idx) => idx > state.stepIndex && !st.postTalk);
+    if (nextIndex === -1) return;
+    state.stepIndex = nextIndex;
+    state.phase = "step";
+    state.showResults = false;
+    state.stepSubmissions = {};
+    broadcast();
+  });
+
+  socket.on("host:posttalk", () => {
+    const postTalkIndex = STEPS.findIndex(st => st.postTalk);
+    if (postTalkIndex === -1) return;
+    state.stepIndex = postTalkIndex;
+    state.phase = "step";
+    state.showResults = false;
+    state.stepSubmissions = {};
+    broadcast();
+  });
   socket.on("host:results",    () => { state.showResults = true; broadcast(); });
   socket.on("host:reveal",     () => { state.phase = "reveal"; broadcast(); });
   socket.on("host:lobby",      () => { state.phase = "lobby"; broadcast(); });

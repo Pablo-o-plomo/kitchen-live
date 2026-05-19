@@ -93,6 +93,7 @@ body{background:#07111F;font-family:'Courier New',monospace;color:#e2e8f0;min-he
       <button class="cbtn cn" id="bNext" onclick="hostNext()">▶ ЗАПУСТИТЬ ШАГ 1</button>
       <button class="cbtn cr" id="bRes"  onclick="hostResults()" disabled>📊 ПОКАЗАТЬ ОТВЕТЫ</button>
       <button class="cbtn cv" id="bRev"  onclick="hostReveal()">🎯 ФИНАЛЬНЫЙ ЭКРАН</button>
+      <button class="cbtn cb" id="bPost" onclick="hostPostTalk()" disabled>🗣 ВОПРОС ПОСЛЕ ВЫСТУПЛЕНИЯ</button>
       <button class="cbtn cx" onclick="if(confirm('Сбросить?'))hostReset()">↺ СБРОСИТЬ</button>
     </div>
     <div style="height:1px;background:#0d1f38"></div>
@@ -105,12 +106,12 @@ body{background:#07111F;font-family:'Courier New',monospace;color:#e2e8f0;min-he
 <script>
 const socket=io();
 const STEPS=[
-  {id:0,type:"poll",  phase:"🔥 РАЗМИНКА",   text:"Как контролируете потери?",                     options:["Вручную каждый день","Инвентаризация/мес","Работаем на глаз","Есть автоматизация"],correct:null},
-  {id:1,type:"quiz",  phase:"📦 ПОТЕРИ",      text:"Какой % выручки теряет ресторан?",              options:["3–5%","10–15%","15–30%","Больше 40%"],correct:2},
-  {id:2,type:"input", phase:"💰 ДАННЫЕ",      text:"Выручка за последний месяц",                    field:{key:"vyruchka"}},
-  {id:3,type:"multi", phase:"📊 FOOD COST",   text:"Суммы потерь по категориям",                    fields:[{key:"sebestoimost",label:"Себестоимость"},{key:"porcha",label:"Порча"},{key:"inventar",label:"Инвентаризация"},{key:"brakerage",label:"Бракераж"},{key:"kompliment",label:"Комплименты"},{key:"personal",label:"Персонал"}]},
-  {id:4,type:"quiz",  phase:"❄️ ХРАНЕНИЕ",   text:"Что такое FIFO?",                               options:["Система инвентаризации","First In First Out","Программа учёта","Метод оценки"],correct:1},
-  {id:5,type:"poll",  phase:"🎯 ИТОГ",        text:"Что внедрите первым?",                          options:["Инвентаризацию","Обучение персонала","Систему FC%","Аудит хранения"],correct:null},
+  {id:0,type:"quiz",  phase:"💸 СЛАЙД 2: СКОЛЬКО ТЕРЯЮТ", text:"При обороте 20 млн ₽ в месяц, сколько обычно теряет ресторан?", options:["100–300 тыс ₽","300–500 тыс ₽","800 тыс–1 млн ₽","Больше 2 млн ₽"],correct:2},
+  {id:1,type:"quiz",  phase:"📊 СЛАЙД 3: FOOD COST", text:"Какой диапазон FC% в презентации отмечен как «Норма ресторана»?", options:["<25%","25–30%","30–38%",">38%"],correct:1},
+  {id:2,type:"input", phase:"💰 ВАША ВЫРУЧКА", text:"Введите выручку вашего заведения за последний месяц", field:{key:"vyruchka"}},
+  {id:3,type:"multi", phase:"🧾 ВАШИ ПОТЕРИ", text:"Заполните потери по статьям (как на слайде с формулой FC)", fields:[{key:"sebestoimost",label:"Себестоимость"},{key:"porcha",label:"Порча"},{key:"inventar",label:"Инвентаризация"},{key:"brakerage",label:"Бракераж"},{key:"kompliment",label:"Комплименты"},{key:"personal",label:"Питание персонала"}]},
+  {id:4,type:"poll",  phase:"🔎 СЛАЙДЫ 4–6: ГДЕ ТЕРЯЕТЕ", text:"Где у вас сейчас самый большой риск потерь?", options:["Закупки и цены поставщиков","Хранение/FIFO и порча","Производство/выход блюд","Списания и бракераж"],correct:null},
+  {id:5,type:"poll",  phase:"🎤 ПОСЛЕ ВЫСТУПЛЕНИЯ", text:"Что внедрите в первую очередь после сегодняшнего выступления?", options:["Еженедельную инвентаризацию","Обучение персонала","Систему подсчёта FC%","Аудит зон хранения"],correct:null,postTalk:true},
 ];
 const LETTERS=["A","B","C","D"];
 
@@ -127,6 +128,7 @@ STEPS.forEach((s,i)=>{
 function hostNext()   {socket.emit("host:next")}
 function hostResults(){socket.emit("host:results")}
 function hostReveal() {socket.emit("host:reveal")}
+function hostPostTalk(){socket.emit("host:posttalk")}
 function hostReset()  {socket.emit("host:reset")}
 
 socket.on("state",d=>{
@@ -140,10 +142,13 @@ socket.on("state",d=>{
   });
 
   // Buttons
-  const isLast=d.stepIndex>=STEPS.length-1;
+  const mainSteps=STEPS.filter(s=>!s.postTalk);
+  const lastMainIdx=Math.max(...mainSteps.map(s=>s.id));
+  const isMainDone=d.stepIndex>=lastMainIdx;
   document.getElementById("bNext").textContent=
-    d.stepIndex<0?"▶ ЗАПУСТИТЬ ШАГ 1":isLast?"— последний шаг —":"▶ СЛЕДУЮЩИЙ ШАГ "+(d.stepIndex+2);
-  document.getElementById("bNext").disabled=(isLast&&d.phase==="step");
+    d.stepIndex<0?"▶ ЗАПУСТИТЬ ШАГ 1":isMainDone?"— сбор данных завершён —":"▶ СЛЕДУЮЩИЙ ШАГ "+(d.stepIndex+2);
+  document.getElementById("bNext").disabled=(isMainDone&&d.phase==="step");
+  document.getElementById("bPost").disabled=!(d.phase==="reveal"||d.stepIndex===5);
   document.getElementById("bRes").disabled=!d.step||d.showResults||
     (d.step.type!=="poll"&&d.step.type!=="quiz");
 
