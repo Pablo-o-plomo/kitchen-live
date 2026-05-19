@@ -25,7 +25,7 @@ const STEPS = [
   {
     id: 2, type: "input", phase: "💰 ВАШИ ДАННЫЕ",
     text: "Введите выручку вашего заведения за последний месяц",
-    field: { key: "vyruchka", label: "Выручка", placeholder: "2000000", unit: "₽" },
+    field: { key: "vyruchka", label: "Выручка", placeholder: "20", unit: "млн ₽" },
   },
   {
     id: 3, type: "input", phase: "📊 FOOD COST",
@@ -35,27 +35,27 @@ const STEPS = [
   {
     id: 4, type: "input", phase: "📊 ПОТЕРИ",
     text: "Введите Порчу за последний месяц",
-    field: { key: "porcha", label: "Порча", placeholder: "50000", unit: "₽" },
+    field: { key: "porcha", scale: "k", label: "Порча", placeholder: "50", unit: "тыс ₽" },
   },
   {
     id: 5, type: "input", phase: "📊 ПОТЕРИ",
     text: "Введите Отрицательную инвентаризацию за месяц",
-    field: { key: "inventar", label: "Отриц. инвентаризация", placeholder: "30000", unit: "₽" },
+    field: { key: "inventar", scale: "k", label: "Отриц. инвентаризация", placeholder: "30", unit: "тыс ₽" },
   },
   {
     id: 6, type: "input", phase: "📊 ПОТЕРИ",
     text: "Введите Бракераж за последний месяц",
-    field: { key: "brakerage", label: "Бракераж", placeholder: "20000", unit: "₽" },
+    field: { key: "brakerage", scale: "k", label: "Бракераж", placeholder: "20", unit: "тыс ₽" },
   },
   {
     id: 7, type: "input", phase: "📊 ПОТЕРИ",
     text: "Введите Комплименты за последний месяц",
-    field: { key: "kompliment", label: "Комплименты", placeholder: "10000", unit: "₽" },
+    field: { key: "kompliment", scale: "k", label: "Комплименты", placeholder: "10", unit: "тыс ₽" },
   },
   {
     id: 8, type: "input", phase: "📊 ПОТЕРИ",
     text: "Введите Питание персонала за последний месяц",
-    field: { key: "personal", label: "Питание персонала", placeholder: "25000", unit: "₽" },
+    field: { key: "personal", scale: "k", label: "Питание персонала", placeholder: "25", unit: "тыс ₽" },
   },
   {
     id: 9, type: "quiz", phase: "❄️ ХРАНЕНИЕ",
@@ -76,7 +76,7 @@ let state = {
   phase: "lobby",      // lobby | step | reveal
   stepIndex: -1,
   showResults: false,
-  participants: {},    // id -> { name, city, data:{}, score, stepAnswers:{} }
+  participants: {},    // id -> { name, city, data:{}, stepAnswers:{} }
   stepSubmissions: {}, // id -> submitted for current step
 };
 
@@ -134,7 +134,6 @@ function buildRevealData() {
     return {
       name: p.name,
       city: p.city || "",
-      score: p.score || 0,
       vyruchka: rev,
       sebestoimost: seb,
       fc_percent: fcPercentInput,
@@ -171,7 +170,6 @@ function seedParticipants(count = 50) {
       name: `Тест-ресторан ${i}`,
       city: cities[i % cities.length],
       data: { vyruchka: rev, fc_percent: fcPercent, sebestoimost: seb, porcha: por, inventar: inv, brakerage: bra, kompliment: kom, personal: per },
-      score: randomInt(0, 4000),
       stepAnswers: { 0: randomInt(0, 3), 1: randomInt(0, 3), 9: randomInt(0, 3), 10: randomInt(0, 3) },
     };
   }
@@ -188,7 +186,6 @@ io.on("connection", socket => {
       name: name.trim().slice(0, 40),
       city: (city || "").trim().slice(0, 30),
       data: {},
-      score: 0,
       stepAnswers: {},
     };
     broadcast();
@@ -208,7 +205,10 @@ io.on("connection", socket => {
     if (step.type === "poll" || step.type === "quiz") {
       p.stepAnswers[stepId] = value;
     } else if (step.type === "input") {
-      p.data[step.field.key] = value;
+      let storedValue = value;
+      if (step.field.key === "vyruchka") storedValue = value * 1000000;
+      if (step.field.scale === "k") storedValue = value * 1000;
+      p.data[step.field.key] = storedValue;
       p.stepAnswers[stepId] = 1; // mark as done
     } else if (step.type === "multi") {
       Object.assign(p.data, value);

@@ -133,7 +133,7 @@ body{background:#08152A;font-family:'Arial Black',Arial,sans-serif;color:#fff;di
   <div class="sub-icon" id="sub-icon">✅</div>
   <div class="sub-text" id="sub-text">Данные приняты!</div>
   <div class="sub-hint">Ждём следующего шага<span class="dots"></span></div>
-  <div class="score-bg" id="sub-score">0 очков</div>
+  
 </div>
 
 <!-- REVEAL -->
@@ -146,7 +146,7 @@ body{background:#08152A;font-family:'Arial Black',Arial,sans-serif;color:#fff;di
 <script>
 const socket = io();
 const LETTERS = ["A","B","C","D"];
-let myName="", myScore=0, submitted=false, currentStepId=-1, totalSteps=6;
+let myName="", submitted=false, currentStepId=-1, totalSteps=6;
 
 function show(id){document.querySelectorAll(".screen").forEach(s=>s.classList.remove("on"));document.getElementById(id).classList.add("on")}
 function fmt(v){return v?Number(v).toLocaleString("ru-RU"):"0"}
@@ -197,16 +197,13 @@ socket.on("state", d=>{
 
 socket.on("submitted",({stepId,value,correct})=>{
   submitted=true;
-  const isQuiz=(correct!==null&&correct!==undefined);
-  const isCorrect=isQuiz&&value===correct;
-  if(isQuiz){
-    if(isCorrect){myScore+=1000;document.getElementById("sub-icon").textContent="✅";document.getElementById("sub-text").textContent="Правильно!"}
-    else{document.getElementById("sub-icon").textContent="❌";document.getElementById("sub-text").textContent="Неверно"}
+  if(correct!==null&&correct!==undefined){
+    document.getElementById("sub-icon").textContent="✅";
+    document.getElementById("sub-text").textContent="Ответ принят!";
   } else {
     document.getElementById("sub-icon").textContent="✅";
     document.getElementById("sub-text").textContent="Данные приняты!";
   }
-  document.getElementById("sub-score").textContent=myScore.toLocaleString("ru-RU")+" очков";
   show("s-sub");
 });
 
