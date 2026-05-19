@@ -157,13 +157,6 @@ socket.on("state", d=>{
     renderAll(d.revealData);
   }
 
-  const postTalkStep = d.step && d.step.postTalk;
-  const canShowPostTalk = postTalkStep && d.showResults && d.results && d.step.options;
-  if(canShowPostTalk){
-    renderPostTalk(d.step, d.results);
-  } else {
-    document.getElementById("posttalk").style.display="none";
-  }
 });
 
 function renderPostTalk(step, results){

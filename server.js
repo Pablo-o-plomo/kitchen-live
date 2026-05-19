@@ -63,12 +63,6 @@ const STEPS = [
     options: ["Закупки и входящие цены", "Хранение и порча", "Списания и бракераж", "Во всех зонах сразу"],
     correct: null, dataKey: "quiz2",
   },
-  {
-    id: 10, type: "poll", phase: "🎤 ПОСЛЕ ВЫСТУПЛЕНИЯ",
-    text: "Что внедрите первым после презентации?",
-    options: ["Еженедельную инвентаризацию", "FC-контроль по статьям списания", "Стандарты хранения + FIFO", "Фотофиксацию списаний"],
-    correct: null, dataKey: "first_action", postTalk: true,
-  },
 ];
 
 // ── State ──────────────────────────────────────────────────────
@@ -146,7 +140,6 @@ function buildRevealData() {
       losses,
       fc,
       control_method: p.stepAnswers[0] ?? null,
-      first_action: p.stepAnswers[10] ?? null,
     };
   }).sort((a, b) => b.fc - a.fc);
 }
@@ -170,7 +163,7 @@ function seedParticipants(count = 50) {
       name: `Тест-ресторан ${i}`,
       city: cities[i % cities.length],
       data: { vyruchka: rev, fc_percent: fcPercent, sebestoimost: seb, porcha: por, inventar: inv, brakerage: bra, kompliment: kom, personal: per },
-      stepAnswers: { 0: randomInt(0, 3), 1: randomInt(0, 3), 9: randomInt(0, 3), 10: randomInt(0, 3) },
+      stepAnswers: { 0: randomInt(0, 3), 1: randomInt(0, 3), 9: randomInt(0, 3) },
     };
   }
 }
@@ -232,7 +225,7 @@ io.on("connection", socket => {
 
   // Host controls
   socket.on("host:next", () => {
-    const nextIndex = STEPS.findIndex((st, idx) => idx > state.stepIndex && !st.postTalk);
+    const nextIndex = STEPS.findIndex((st, idx) => idx > state.stepIndex);
     if (nextIndex === -1) return;
     state.stepIndex = nextIndex;
     state.phase = "step";
@@ -241,32 +234,8 @@ io.on("connection", socket => {
     broadcast();
   });
 
-  socket.on("host:posttalk", () => {
-    const postTalkIndex = STEPS.findIndex(st => st.postTalk);
-    if (postTalkIndex === -1) return;
-    state.stepIndex = postTalkIndex;
-    state.phase = "step";
-    state.showResults = false;
-    state.stepSubmissions = {};
-    broadcast();
-  });
-  socket.on("host:results", () => {
-    state.showResults = true;
-    const current = STEPS[state.stepIndex];
-    if (current && current.postTalk) {
-      state.phase = "reveal";
-    }
-    broadcast();
-  });
+  socket.on("host:results", () => { state.showResults = true; broadcast(); });
 
-  socket.on("host:posttalk:show", () => {
-    const postTalkIndex = STEPS.findIndex(st => st.postTalk);
-    if (postTalkIndex === -1) return;
-    state.stepIndex = postTalkIndex;
-    state.showResults = true;
-    state.phase = "reveal";
-    broadcast();
-  });
   socket.on("host:reveal",     () => { state.phase = "reveal"; broadcast(); });
   socket.on("host:lobby",      () => { state.phase = "lobby"; broadcast(); });
   socket.on("host:seed50", () => {

@@ -92,10 +92,8 @@ body{background:#07111F;font-family:'Courier New',monospace;color:#e2e8f0;min-he
       <div class="lbl">УПРАВЛЕНИЕ</div>
       <button class="cbtn cn" id="bNext" onclick="hostNext()">▶ ЗАПУСТИТЬ ШАГ 1</button>
       <button class="cbtn cr" id="bRes"  onclick="hostResults()" disabled>📊 ПОКАЗАТЬ ОТВЕТЫ</button>
-      <button class="cbtn cv" id="bShowPost" onclick="hostShowPostTalk()" disabled>✅ ПОКАЗАТЬ ЧТО ВЫБРАЛИ</button>
-      <button class="cbtn cv" id="bRev"  onclick="hostReveal()">🎯 ФИНАЛЬНЫЙ ЭКРАН</button>
-      <button class="cbtn cb" id="bPost" onclick="hostPostTalk()" disabled>🗣 ВОПРОС ПОСЛЕ ВЫСТУПЛЕНИЯ</button>
-      <button class="cbtn cb" onclick="hostSeed50()">👥 ДОБАВИТЬ 50 ТЕСТОВ</button>
+            <button class="cbtn cv" id="bRev"  onclick="hostReveal()">🎯 ФИНАЛЬНЫЙ ЭКРАН</button>
+            <button class="cbtn cb" onclick="hostSeed50()">👥 ДОБАВИТЬ 50 ТЕСТОВ</button>
       <button class="cbtn cx" onclick="if(confirm('Сбросить?'))hostReset()">↺ СБРОСИТЬ</button>
     </div>
     <div style="height:1px;background:#0d1f38"></div>
@@ -125,8 +123,6 @@ function renderStepList(){
 function hostNext()   {socket.emit("host:next")}
 function hostResults(){socket.emit("host:results")}
 function hostReveal() {socket.emit("host:reveal")}
-function hostPostTalk(){socket.emit("host:posttalk")}
-function hostShowPostTalk(){socket.emit("host:posttalk:show")}
 function hostSeed50(){socket.emit("host:seed50")}
 function hostReset()  {socket.emit("host:reset")}
 
@@ -146,15 +142,12 @@ socket.on("state",d=>{
   });
 
   // Buttons
-  const mainSteps=steps.filter(s=>!s.postTalk);
+  const mainSteps=steps;
   const lastMainIdx=mainSteps.length?Math.max(...mainSteps.map(s=>s.id)):-1;
   const isMainDone=mainSteps.length?d.stepIndex>=lastMainIdx:true;
   document.getElementById("bNext").textContent=
     d.stepIndex<0?"▶ ЗАПУСТИТЬ ШАГ 1":isMainDone?"— сбор данных завершён —":"▶ СЛЕДУЮЩИЙ ШАГ "+(d.stepIndex+2);
   document.getElementById("bNext").disabled=(isMainDone&&d.phase==="step");
-  const postTalkStep = steps.find(st=>st.postTalk);
-  const postTalkIdx = postTalkStep ? postTalkStep.id : -1;
-  document.getElementById("bPost").disabled=!(d.phase==="reveal"||d.stepIndex===postTalkIdx);
   document.getElementById("bRes").disabled=!d.step||d.showResults||
     (d.step.type!=="poll"&&d.step.type!=="quiz");
   const canShowPost = d.step && d.step.postTalk && d.submittedCount>0;
