@@ -20,8 +20,7 @@ const STEPS = [
     id: 1, type: "quiz", phase: "📦 ПОТЕРИ",
     text: "Какой % выручки в среднем теряет ресторан из-за потерь?",
     options: ["3–5%", "10–15%", "15–30%", "Больше 40%"],
-    correct: 2, dataKey: "quiz1",
-    explanation: "15–30% — реальная цифра по аудитам. Большинство этого не знают.",
+    correct: null, dataKey: "quiz1",
   },
   {
     id: 2, type: "input", phase: "💰 ВАШИ ДАННЫЕ",
@@ -29,29 +28,46 @@ const STEPS = [
     field: { key: "vyruchka", label: "Выручка", placeholder: "2000000", unit: "₽" },
   },
   {
-    id: 3, type: "multi", phase: "📊 FOOD COST",
-    text: "Введите суммы потерь за последний месяц",
-    fields: [
-      { key: "sebestoimost", label: "Себестоимость реализации", icon: "🍽️" },
-      { key: "porcha",       label: "Порча",                    icon: "⚠️" },
-      { key: "inventar",     label: "Отриц. инвентаризация",    icon: "📦" },
-      { key: "brakerage",    label: "Бракераж",                 icon: "🚫" },
-      { key: "kompliment",   label: "Комплименты",              icon: "🎁" },
-      { key: "personal",     label: "Питание персонала",        icon: "👥" },
-    ],
+    id: 3, type: "input", phase: "📊 FOOD COST",
+    text: "FC % ИЗ МАРОЧНИКА (в рублях за месяц)",
+    field: { key: "sebestoimost", label: "FC % ИЗ МАРОЧНИКА", placeholder: "300000", unit: "₽" },
   },
   {
-    id: 4, type: "quiz", phase: "❄️ ХРАНЕНИЕ",
+    id: 4, type: "input", phase: "📊 ПОТЕРИ",
+    text: "Введите Порчу за последний месяц",
+    field: { key: "porcha", label: "Порча", placeholder: "50000", unit: "₽" },
+  },
+  {
+    id: 5, type: "input", phase: "📊 ПОТЕРИ",
+    text: "Введите Отрицательную инвентаризацию за месяц",
+    field: { key: "inventar", label: "Отриц. инвентаризация", placeholder: "30000", unit: "₽" },
+  },
+  {
+    id: 6, type: "input", phase: "📊 ПОТЕРИ",
+    text: "Введите Бракераж за последний месяц",
+    field: { key: "brakerage", label: "Бракераж", placeholder: "20000", unit: "₽" },
+  },
+  {
+    id: 7, type: "input", phase: "📊 ПОТЕРИ",
+    text: "Введите Комплименты за последний месяц",
+    field: { key: "kompliment", label: "Комплименты", placeholder: "10000", unit: "₽" },
+  },
+  {
+    id: 8, type: "input", phase: "📊 ПОТЕРИ",
+    text: "Введите Питание персонала за последний месяц",
+    field: { key: "personal", label: "Питание персонала", placeholder: "25000", unit: "₽" },
+  },
+  {
+    id: 9, type: "quiz", phase: "❄️ ХРАНЕНИЕ",
     text: "Что такое принцип FIFO на кухне?",
     options: ["Система инвентаризации", "First In First Out", "Программа учёта", "Метод оценки поставщиков"],
-    correct: 1, dataKey: "quiz2",
-    explanation: "FIFO — старый товар берётся первым. Нарушение FIFO = главная причина порчи.",
+    correct: null, dataKey: "quiz2",
   },
   {
-    id: 5, type: "poll", phase: "🎯 ИТОГ",
+    id: 10, type: "poll", phase: "🎤 ПОСЛЕ ВЫСТУПЛЕНИЯ",
     text: "Что внедрите в первую очередь после сегодняшнего выступления?",
     options: ["Еженедельную инвентаризацию", "Обучение персонала", "Систему подсчёта FC%", "Аудит зон хранения"],
-    correct: null, dataKey: "first_action",
+    correct: null, dataKey: "first_action", postTalk: true,
   },
 ];
 
@@ -95,6 +111,7 @@ function buildPublic() {
     results,
     participantCount: total,
     submittedCount: submissions,
+    steps: STEPS.map(({ id, type, phase, postTalk }) => ({ id, type, phase, postTalk: !!postTalk })),
     // Reveal data: all participants with their FC data
     revealData: state.phase === "reveal" ? buildRevealData() : null,
   };
@@ -128,9 +145,33 @@ function buildRevealData() {
       losses,
       fc,
       control_method: p.stepAnswers[0] ?? null,
-      first_action: p.stepAnswers[5] ?? null,
+      first_action: p.stepAnswers[10] ?? null,
     };
   }).sort((a, b) => b.fc - a.fc);
+}
+
+
+
+function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function seedParticipants(count = 50) {
+  const cities = ["Москва", "СПб", "Казань", "Екатеринбург", "Новосибирск", "Краснодар"];
+  for (let i = 1; i <= count; i++) {
+    const id = `seed-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`;
+    const rev = randomInt(1200000, 6000000);
+    const seb = Math.round(rev * (randomInt(22, 34) / 100));
+    const por = randomInt(15000, 180000);
+    const inv = randomInt(10000, 120000);
+    const bra = randomInt(5000, 70000);
+    const kom = randomInt(3000, 50000);
+    const per = randomInt(7000, 90000);
+    state.participants[id] = {
+      name: `Тест-ресторан ${i}`,
+      city: cities[i % cities.length],
+      data: { vyruchka: rev, sebestoimost: seb, porcha: por, inventar: inv, brakerage: bra, kompliment: kom, personal: per },
+      score: randomInt(0, 4000),
+      stepAnswers: { 0: randomInt(0, 3), 1: randomInt(0, 3), 9: randomInt(0, 3), 10: randomInt(0, 3) },
+    };
+  }
 }
 
 // ── Socket.io ──────────────────────────────────────────────────
@@ -154,15 +195,15 @@ io.on("connection", socket => {
   socket.on("submit", ({ stepId, value }) => {
     const p = state.participants[socket.id];
     if (!p) return;
+    if (state.phase !== "step") return;
+    if (stepId !== state.stepIndex) return;
+    if (state.stepSubmissions[socket.id]) return;
     const step = STEPS[stepId];
     if (!step) return;
 
     // Store answer
     if (step.type === "poll" || step.type === "quiz") {
       p.stepAnswers[stepId] = value;
-      if (step.type === "quiz" && step.correct !== null && value === step.correct) {
-        p.score += 1000;
-      }
     } else if (step.type === "input") {
       p.data[step.field.key] = value;
       p.stepAnswers[stepId] = 1; // mark as done
@@ -177,10 +218,33 @@ io.on("connection", socket => {
   });
 
   // Host controls
-  socket.on("host:next",       () => { state.stepIndex = Math.min(state.stepIndex + 1, STEPS.length - 1); state.phase = "step"; state.showResults = false; state.stepSubmissions = {}; broadcast(); });
+  socket.on("host:next", () => {
+    const nextIndex = STEPS.findIndex((st, idx) => idx > state.stepIndex && !st.postTalk);
+    if (nextIndex === -1) return;
+    state.stepIndex = nextIndex;
+    state.phase = "step";
+    state.showResults = false;
+    state.stepSubmissions = {};
+    broadcast();
+  });
+
+  socket.on("host:posttalk", () => {
+    const postTalkIndex = STEPS.findIndex(st => st.postTalk);
+    if (postTalkIndex === -1) return;
+    state.stepIndex = postTalkIndex;
+    state.phase = "step";
+    state.showResults = false;
+    state.stepSubmissions = {};
+    broadcast();
+  });
   socket.on("host:results",    () => { state.showResults = true; broadcast(); });
   socket.on("host:reveal",     () => { state.phase = "reveal"; broadcast(); });
   socket.on("host:lobby",      () => { state.phase = "lobby"; broadcast(); });
+  socket.on("host:seed50", () => {
+    if (Object.keys(state.participants).length === 0) seedParticipants(50);
+    broadcast();
+  });
+
   socket.on("host:reset",      () => {
     state = { phase: "lobby", stepIndex: -1, showResults: false, participants: {}, stepSubmissions: {} };
     broadcast();
