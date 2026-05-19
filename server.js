@@ -20,8 +20,7 @@ const STEPS = [
     id: 1, type: "quiz", phase: "📦 ПОТЕРИ",
     text: "Какой % выручки в среднем теряет ресторан из-за потерь?",
     options: ["3–5%", "10–15%", "15–30%", "Больше 40%"],
-    correct: 2, dataKey: "quiz1",
-    explanation: "15–30% — реальная цифра по аудитам. Большинство этого не знают.",
+    correct: null, dataKey: "quiz1",
   },
   {
     id: 2, type: "input", phase: "💰 ВАШИ ДАННЫЕ",
@@ -44,8 +43,7 @@ const STEPS = [
     id: 4, type: "quiz", phase: "❄️ ХРАНЕНИЕ",
     text: "Что такое принцип FIFO на кухне?",
     options: ["Система инвентаризации", "First In First Out", "Программа учёта", "Метод оценки поставщиков"],
-    correct: 1, dataKey: "quiz2",
-    explanation: "FIFO — старый товар берётся первым. Нарушение FIFO = главная причина порчи.",
+    correct: null, dataKey: "quiz2",
   },
   {
     id: 5, type: "poll", phase: "🎤 ПОСЛЕ ВЫСТУПЛЕНИЯ",
@@ -188,9 +186,6 @@ io.on("connection", socket => {
     // Store answer
     if (step.type === "poll" || step.type === "quiz") {
       p.stepAnswers[stepId] = value;
-      if (step.type === "quiz" && step.correct !== null && value === step.correct) {
-        p.score += 1000;
-      }
     } else if (step.type === "input") {
       p.data[step.field.key] = value;
       p.stepAnswers[stepId] = 1; // mark as done
