@@ -61,9 +61,6 @@ body{background:#060F1C;font-family:'Arial Black',Arial,sans-serif;color:#fff;mi
 .bar-fill.kom{background:#a78bfa}
 .bar-fill.per{background:#38bdf8}
 
-/* score badge */
-.score{position:absolute;top:10px;right:10px;background:rgba(245,166,35,.15);border:1px solid rgba(245,166,35,.3);border-radius:50px;padding:2px 8px;font-size:10px;color:#F5A623;font-weight:700}
-
 /* ── NO DATA ── */
 .nodata{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:12px;color:#3a5070}
 .nodata .icon{font-size:60px}
@@ -143,8 +140,10 @@ function fcColor(fc){
 }
 
 socket.on("state", d=>{
-  if(d.phase!=="reveal"||!d.revealData||d.revealData.length===0) return;
-  renderAll(d.revealData);
+  if(d.phase==="reveal"&&d.revealData&&d.revealData.length>0){
+    renderAll(d.revealData);
+  }
+
 });
 
 function renderAll(data){
@@ -202,7 +201,6 @@ function renderAll(data){
       </div>`).join("");
 
     card.innerHTML=`
-      ${r.score>0?`<div class="score">🏆 ${r.score.toLocaleString("ru-RU")}</div>`:""}
       <div class="r-name" title="${r.name}">${r.name}</div>
       ${r.city?`<div class="r-city">${r.city}</div>`:""}
       <div class="r-fc" style="color:${fcColor(r.fc)}">${r.fc>0?r.fc.toFixed(1)+"%":"—"}</div>
