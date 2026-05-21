@@ -226,7 +226,12 @@ io.on("connection", socket => {
   // Host controls
   socket.on("host:next", () => {
     const nextIndex = STEPS.findIndex((st, idx) => idx > state.stepIndex);
-    if (nextIndex === -1) return;
+    if (nextIndex === -1) {
+      state.phase = "reveal";
+      state.showResults = false;
+      broadcast();
+      return;
+    }
     state.stepIndex = nextIndex;
     state.phase = "step";
     state.showResults = false;
@@ -234,7 +239,13 @@ io.on("connection", socket => {
     broadcast();
   });
 
-  socket.on("host:results", () => { state.showResults = true; broadcast(); });
+  socket.on("host:results", () => {
+    state.showResults = true;
+    if (state.stepIndex >= STEPS.length - 1) {
+      state.phase = "reveal";
+    }
+    broadcast();
+  });
 
   socket.on("host:reveal",     () => { state.phase = "reveal"; broadcast(); });
   socket.on("host:lobby",      () => { state.phase = "lobby"; broadcast(); });
@@ -249,7 +260,7 @@ io.on("connection", socket => {
   });
 
   socket.on("disconnect", () => {
-    delete state.participants[socket.id];
+    // Keep participant data for final reveal even if phone goes offline/locks screen.
     delete state.stepSubmissions[socket.id];
     broadcast();
   });
