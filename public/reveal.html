@@ -153,10 +153,9 @@ function fcColor(fc){
 }
 
 socket.on("state", d=>{
-  if(d.phase==="reveal"&&d.revealData&&d.revealData.length>0){
-    renderAll(d.revealData);
-  }
-
+  if(d.phase!=="reveal") return;
+  const data=Array.isArray(d.revealData)?d.revealData:[];
+  renderAll(data);
 });
 
 function renderPostTalk(step, results){
@@ -175,6 +174,18 @@ function renderPostTalk(step, results){
 
 
 function renderAll(data){
+  const grid=document.getElementById("grid");
+  if(!data.length){
+    document.getElementById("hTotal").textContent="0";
+    document.getElementById("hAvgFC").textContent="—";
+    document.getElementById("hTotalLoss").textContent="—";
+    document.getElementById("hOk").textContent="0";
+    document.getElementById("hBad").textContent="0";
+    document.getElementById("sumbar").style.display="none";
+    grid.innerHTML=`<div class="nodata"><div class="icon">⏳</div><div class="msg">НЕТ ДАННЫХ ДЛЯ ПОКАЗА</div><div style="font-size:11px;margin-top:4px">Попросите участников снова зайти по QR и заполнить шаги</div></div>`;
+    return;
+  }
+
   // Summary stats
   const withFC = data.filter(r=>r.fc>0);
   const total = data.length;
@@ -204,7 +215,6 @@ function renderAll(data){
   // Max losses for bar scaling
   const maxLoss=Math.max(...data.map(r=>Math.max(r.sebestoimost,r.porcha,r.inventar,r.brakerage,r.kompliment,r.personal)),1);
 
-  const grid=document.getElementById("grid");
   grid.innerHTML="";
 
   data.forEach((r,i)=>{
