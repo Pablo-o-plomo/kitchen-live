@@ -114,7 +114,7 @@ body{background:#08152A;font-family:'Arial Black',Arial,sans-serif;color:#fff;di
   <div class="field-label" id="i-label"></div>
   <div class="num-wrap">
     <input class="num-inp" id="i-inp" type="number" placeholder="Введите сумму"/>
-    <span class="num-unit">₽</span>
+    <span class="num-unit" id="i-unit">₽</span>
   </div>
   <button class="btn btn-green" onclick="submitInput()">ОТПРАВИТЬ ✓</button>
 </div>
@@ -133,7 +133,7 @@ body{background:#08152A;font-family:'Arial Black',Arial,sans-serif;color:#fff;di
   <div class="sub-icon" id="sub-icon">✅</div>
   <div class="sub-text" id="sub-text">Данные приняты!</div>
   <div class="sub-hint">Ждём следующего шага<span class="dots"></span></div>
-  <div class="score-bg" id="sub-score">0 очков</div>
+  
 </div>
 
 <!-- REVEAL -->
@@ -146,7 +146,7 @@ body{background:#08152A;font-family:'Arial Black',Arial,sans-serif;color:#fff;di
 <script>
 const socket = io();
 const LETTERS = ["A","B","C","D"];
-let myName="", myScore=0, submitted=false, currentStepId=-1;
+let myName="", submitted=false, currentStepId=-1, totalSteps=6;
 
 function show(id){document.querySelectorAll(".screen").forEach(s=>s.classList.remove("on"));document.getElementById(id).classList.add("on")}
 function fmt(v){return v?Number(v).toLocaleString("ru-RU"):"0"}
@@ -163,6 +163,7 @@ document.getElementById("iName").addEventListener("keydown",e=>{if(e.key==="Ente
 
 socket.on("state", d=>{
   document.getElementById("w-count").textContent="👥 "+d.participantCount+" участников";
+  if(Array.isArray(d.steps)&&d.steps.length) totalSteps=d.steps.length;
 
   if(d.phase==="lobby"){
     if(myName) show("s-wait"); else show("s-lobby");
@@ -194,24 +195,38 @@ socket.on("state", d=>{
   }
 });
 
+
+socket.on("submit:rejected",({reason,activeStepId})=>{
+  if(reason==="step_changed"){
+    document.getElementById("sub-icon").textContent="⏭️";
+    document.getElementById("sub-text").textContent="Шаг уже переключили";
+    submitted=true;
+    show("s-sub");
+    return;
+  }
+  if(reason==="phase_closed"){
+    document.getElementById("sub-icon").textContent="⏳";
+    document.getElementById("sub-text").textContent="Приём ответов уже закрыт";
+    submitted=true;
+    show("s-sub");
+  }
+});
+
 socket.on("submitted",({stepId,value,correct})=>{
   submitted=true;
-  const isQuiz=(correct!==null&&correct!==undefined);
-  const isCorrect=isQuiz&&value===correct;
-  if(isQuiz){
-    if(isCorrect){myScore+=1000;document.getElementById("sub-icon").textContent="✅";document.getElementById("sub-text").textContent="Правильно!"}
-    else{document.getElementById("sub-icon").textContent="❌";document.getElementById("sub-text").textContent="Неверно"}
+  if(correct!==null&&correct!==undefined){
+    document.getElementById("sub-icon").textContent="✅";
+    document.getElementById("sub-text").textContent="Ответ принят!";
   } else {
     document.getElementById("sub-icon").textContent="✅";
     document.getElementById("sub-text").textContent="Данные приняты!";
   }
-  document.getElementById("sub-score").textContent=myScore.toLocaleString("ru-RU")+" очков";
   show("s-sub");
 });
 
 function renderChoice(step,idx){
   document.getElementById("c-phase").textContent=step.phase;
-  document.getElementById("c-num").textContent="ШАГ "+(idx+1)+" из 6";
+  document.getElementById("c-num").textContent="ШАГ "+(idx+1)+" из "+totalSteps;
   document.getElementById("c-text").textContent=step.text;
   const g=document.getElementById("c-opts");g.innerHTML="";
   step.options.forEach((opt,i)=>{
@@ -231,10 +246,11 @@ function sendChoice(i,stepId){
 
 function renderInput(step,idx){
   document.getElementById("i-phase").textContent=step.phase;
-  document.getElementById("i-num").textContent="ШАГ "+(idx+1)+" из 6";
+  document.getElementById("i-num").textContent="ШАГ "+(idx+1)+" из "+totalSteps;
   document.getElementById("i-text").textContent=step.text;
   document.getElementById("i-label").textContent=step.field.label.toUpperCase();
   const inp=document.getElementById("i-inp");inp.value="";inp.placeholder=step.field.placeholder||"0";
+  document.getElementById("i-unit").textContent=step.field.unit||"₽";
   setTimeout(()=>inp.focus(),100);
 }
 
@@ -247,7 +263,7 @@ function submitInput(){
 
 function renderMulti(step,idx){
   document.getElementById("m-phase").textContent=step.phase;
-  document.getElementById("m-num").textContent="ШАГ "+(idx+1)+" из 6";
+  document.getElementById("m-num").textContent="ШАГ "+(idx+1)+" из "+totalSteps;
   document.getElementById("m-text").textContent=step.text;
   const list=document.getElementById("m-fields");list.innerHTML="";
   step.fields.forEach(f=>{
