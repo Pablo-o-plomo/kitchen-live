@@ -233,7 +233,7 @@ function renderAll(data){
       ${r.city?`<div class="r-city">${r.city}</div>`:""}
       <div class="r-fc" style="color:${fcColor(r.fc)}">${r.fc>0?r.fc.toFixed(1)+"%":"—"}</div>
       <div class="r-fc-lbl">FOOD COST</div>
-      ${r.vyruchka>0?`<div class="r-rev">Выручка: ${fmtK(r.vyruchka)} ₽</div>`:""}
+      ${r.vyruchka>0?`<div class="r-rev">Выручка кухни: ${fmtK(r.vyruchka)} ₽</div>`:""}
       ${barHTML?`<div class="bars">${barHTML}</div>`:"<div style='font-size:10px;color:#3a5070'>данные не введены</div>"}
     `;
     grid.appendChild(card);

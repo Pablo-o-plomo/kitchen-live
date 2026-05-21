@@ -24,8 +24,8 @@ const STEPS = [
   },
   {
     id: 2, type: "input", phase: "💰 ВАШИ ДАННЫЕ",
-    text: "Введите выручку вашего заведения за последний месяц",
-    field: { key: "vyruchka", label: "Выручка", placeholder: "20", unit: "млн ₽" },
+    text: "Введите выручку кухни за последний месяц",
+    field: { key: "vyruchka", label: "Выручка кухни", placeholder: "20", unit: "млн ₽" },
   },
   {
     id: 3, type: "input", phase: "📊 FOOD COST",
