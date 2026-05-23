@@ -209,6 +209,30 @@ function seedParticipants(count = 50) {
   }
 }
 
+
+
+function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function seedParticipants(count = 50) {
+  const cities = ["Москва", "СПб", "Казань", "Екатеринбург", "Новосибирск", "Краснодар"];
+  for (let i = 1; i <= count; i++) {
+    const id = `seed-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`;
+    const rev = randomInt(1200000, 6000000);
+    const fcPercent = randomInt(22, 34);
+    const seb = Math.round(rev * (fcPercent / 100));
+    const por = randomInt(15000, 180000);
+    const inv = randomInt(10000, 120000);
+    const bra = randomInt(5000, 70000);
+    const kom = randomInt(3000, 50000);
+    const per = randomInt(7000, 90000);
+    state.participants[id] = {
+      name: `Тест-ресторан ${i}`,
+      city: cities[i % cities.length],
+      data: { vyruchka: rev, fc_percent: fcPercent, sebestoimost: seb, porcha: por, inventar: inv, brakerage: bra, kompliment: kom, personal: per },
+      stepAnswers: { 0: randomInt(0, 3), 1: randomInt(0, 3), 9: randomInt(0, 3) },
+    };
+  }
+}
+
 // ── Socket.io ──────────────────────────────────────────────────
 io.on("connection", socket => {
   socket.emit("state", buildPublic());

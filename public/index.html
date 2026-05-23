@@ -188,6 +188,23 @@ socket.on("submit:rejected",({reason,activeStepId})=>{
   }
 });
 
+
+socket.on("submit:rejected",({reason,activeStepId})=>{
+  if(reason==="step_changed"){
+    document.getElementById("sub-icon").textContent="⏭️";
+    document.getElementById("sub-text").textContent="Шаг уже переключили";
+    submitted=true;
+    show("s-sub");
+    return;
+  }
+  if(reason==="phase_closed"){
+    document.getElementById("sub-icon").textContent="⏳";
+    document.getElementById("sub-text").textContent="Приём ответов уже закрыт";
+    submitted=true;
+    show("s-sub");
+  }
+});
+
 socket.on("submitted",({stepId,value,correct})=>{
   submitted=true;
   if(correct!==null&&correct!==undefined){
