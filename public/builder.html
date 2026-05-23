@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AntiLoss OS — Конструктор</title>
+  <style>
+    body{margin:0;font-family:Arial,sans-serif;background:#0b1220;color:#fff}
+    .top{display:flex;gap:8px;padding:10px;background:#111a2f;border-bottom:1px solid #263554}
+    .top button{background:#1f3b66;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer}
+    .layout{display:grid;grid-template-columns:240px 1fr 320px;height:calc(100vh - 52px)}
+    .left,.right{background:#101a2e;border-right:1px solid #263554;overflow:auto;padding:12px}
+    .right{border-right:none;border-left:1px solid #263554}
+    .canvas{position:relative;background:#0d172b}
+    .grid{position:absolute;inset:0;background-image:radial-gradient(#203457 1px, transparent 1px);background-size:24px 24px}
+    .node{position:absolute;background:#162743;border:1px solid #31548b;border-radius:10px;padding:10px;min-width:150px;cursor:move}
+    .n-trigger{border-color:#22c55e}.n-import{border-color:#3b82f6}.n-metric{border-color:#f59e0b}.n-condition{border-color:#ef4444}.n-alert{border-color:#fb7185}.n-task{border-color:#a78bfa}.n-telegram{border-color:#38bdf8}
+    .muted{color:#8ea3c7;font-size:12px}
+    .item{padding:8px;border:1px solid #2a426c;border-radius:8px;margin-bottom:8px;cursor:pointer}
+    input,textarea,select{width:100%;margin-top:6px;background:#0f1f3a;color:#fff;border:1px solid #2a426c;border-radius:8px;padding:8px}
+  </style>
+</head>
+<body>
+  <div class="top">
+    <button id="save">Сохранить</button>
+    <button id="run">Запустить тест</button>
+    <button id="publish">Опубликовать</button>
+    <button id="templates">Шаблоны</button>
+    <button id="logs">История выполнения</button>
+    <div class="muted" id="status"></div>
+  </div>
+  <div class="layout">
+    <aside class="left">
+      <h3>Блоки</h3>
+      <div class="item" data-type="TriggerNode">Запуск</div>
+      <div class="item" data-type="DataImportNode">Источник данных</div>
+      <div class="item" data-type="MetricNode">Показатель</div>
+      <div class="item" data-type="ConditionNode">Условие</div>
+      <div class="item" data-type="AlertNode">Тревога</div>
+      <div class="item" data-type="TaskNode">Задача</div>
+      <div class="item" data-type="TelegramNode">Telegram</div>
+      <div class="item" data-type="PhotoCheckNode">Фото-проверка</div>
+      <div class="item" data-type="ApprovalNode">Подтверждение</div>
+      <div class="item" data-type="ReportNode">Отчёт</div>
+      <div class="item" data-type="AiAnalysisNode">AI-анализ</div>
+      <div class="item" data-type="WebhookNode">Внешний сигнал</div>
+    </aside>
+    <main class="canvas" id="canvas"><div class="grid"></div></main>
+    <aside class="right">
+      <h3>Настройки блока</h3>
+      <div id="empty" class="muted">Выберите блок на canvas.</div>
+      <div id="form" style="display:none">
+        <label>Название</label><input id="fName" />
+        <label>Конфиг (JSON)</label><textarea id="fConfig" rows="12"></textarea>
+        <button id="apply" style="margin-top:10px;background:#2563eb;border:none;color:#fff;padding:8px 10px;border-radius:8px">Применить</button>
+      </div>
+    </aside>
+  </div>
+<script>
+const wfId = location.pathname.split('/')[2] || 'demo';
+let nodes=[]; let selected=null;
+const canvas=document.getElementById('canvas');
+const status=document.getElementById('status');
+function cls(type){return {TriggerNode:'n-trigger',DataImportNode:'n-import',MetricNode:'n-metric',ConditionNode:'n-condition',AlertNode:'n-alert',TaskNode:'n-task',TelegramNode:'n-telegram'}[type]||''}
+function draw(){canvas.querySelectorAll('.node').forEach(n=>n.remove());nodes.forEach(n=>{const el=document.createElement('div');el.className='node '+cls(n.type);el.style.left=n.x+'px';el.style.top=n.y+'px';el.innerHTML='<b>'+n.name+'</b><div class="muted">'+n.type+'</div>';el.onclick=()=>pick(n.id);canvas.appendChild(el);});}
+function pick(id){selected=nodes.find(n=>n.id===id);document.getElementById('empty').style.display='none';document.getElementById('form').style.display='block';document.getElementById('fName').value=selected.name;document.getElementById('fConfig').value=JSON.stringify(selected.config||{},null,2)}
+document.querySelectorAll('.item').forEach(i=>i.onclick=()=>{const t=i.dataset.type;nodes.push({id:crypto.randomUUID(),type:t,name:i.textContent.trim(),config:{},x:260+Math.random()*320,y:60+Math.random()*420});draw();});
+document.getElementById('apply').onclick=()=>{if(!selected)return;selected.name=document.getElementById('fName').value;try{selected.config=JSON.parse(document.getElementById('fConfig').value||'{}');}catch(e){alert('Некорректный JSON');return;}draw();};
+document.getElementById('save').onclick=async()=>{await fetch('/api/workflows/'+wfId+'/builder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nodes})});status.textContent='Сохранено';};
+document.getElementById('run').onclick=async()=>{const r=await fetch('/api/workflows/'+wfId+'/run-test',{method:'POST'});const j=await r.json();status.textContent='Тест: '+j.status;};
+document.getElementById('templates').onclick=async()=>{const r=await fetch('/api/workflows/templates');const t=await r.json();alert('Доступно шаблонов: '+t.length);};
+draw();
+</script>
+</body>
+</html>

@@ -52,24 +52,11 @@ body{background:#08152A;font-family:'Arial Black',Arial,sans-serif;color:#fff;di
 .num-inp::placeholder{color:#3a5070;font-size:16px;font-weight:400}
 .num-unit{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:#4ade80;opacity:.5;font-size:14px;pointer-events:none}
 .field-label{font-size:11px;color:#5C7A99;letter-spacing:.15em;text-align:center;width:100%}
-/* ─ MULTI ─ */
-.multi-list{width:100%;display:flex;flex-direction:column;gap:8px}
-.mfield{background:#0C1D35;border:1px solid #1e3a5f;border-radius:11px;padding:10px 14px}
-.mfield-top{display:flex;align-items:center;gap:8px;margin-bottom:6px}
-.mfield-icon{font-size:18px}
-.mfield-label{font-size:11px;color:#94a3b8;letter-spacing:.1em;font-weight:700}
-.mfield-inp{width:100%;padding:9px 40px 9px 12px;background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.25);border-radius:8px;font-size:15px;font-weight:700;color:#f87171;font-family:inherit;outline:none;-moz-appearance:textfield;transition:border-color .2s}
-.mfield-inp::-webkit-outer-spin-button,.mfield-inp::-webkit-inner-spin-button{-webkit-appearance:none}
-.mfield-inp:focus{border-color:rgba(248,113,113,.7)}
-.mfield-inp::placeholder{color:#3a5070;font-weight:400;font-size:13px}
-.mfield-wrap{position:relative}
-.mfield-unit{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:#f87171;opacity:.4;font-size:11px;pointer-events:none}
 /* ─ SUBMITTED ─ */
 .sub-icon{font-size:72px;animation:pop .3s ease}
 @keyframes pop{0%{transform:scale(.4)}70%{transform:scale(1.18)}100%{transform:scale(1)}}
 .sub-text{font-size:20px;font-weight:900;text-align:center}
 .sub-hint{font-size:13px;color:#5C7A99;text-align:center;letter-spacing:.1em}
-.score-bg{background:linear-gradient(135deg,#C0392B,#E74C3C);border-radius:50px;padding:10px 28px;font-size:22px;font-weight:900}
 /* ─ REVEAL ─ */
 .reveal-big{font-size:48px;text-align:center}
 .reveal-msg{font-size:18px;font-weight:900;text-align:center;line-height:1.35}
@@ -119,15 +106,6 @@ body{background:#08152A;font-family:'Arial Black',Arial,sans-serif;color:#fff;di
   <button class="btn btn-green" onclick="submitInput()">ОТПРАВИТЬ ✓</button>
 </div>
 
-<!-- STEP: MULTI INPUT -->
-<div class="screen" id="s-multi">
-  <div class="step-phase" id="m-phase"></div>
-  <div class="step-num" id="m-num"></div>
-  <div class="step-q" id="m-text"></div>
-  <div class="multi-list" id="m-fields"></div>
-  <button class="btn btn-green" onclick="submitMulti()">ОТПРАВИТЬ ВСЁ ✓</button>
-</div>
-
 <!-- SUBMITTED (waiting for next step) -->
 <div class="screen" id="s-sub">
   <div class="sub-icon" id="sub-icon">✅</div>
@@ -146,7 +124,7 @@ body{background:#08152A;font-family:'Arial Black',Arial,sans-serif;color:#fff;di
 <script>
 const socket = io();
 const LETTERS = ["A","B","C","D"];
-let myName="", submitted=false, currentStepId=-1, totalSteps=6;
+let myName="", submitted=false, currentStepId=-1, totalSteps=6, _lastStep=null;
 
 function show(id){document.querySelectorAll(".screen").forEach(s=>s.classList.remove("on"));document.getElementById(id).classList.add("on")}
 function fmt(v){return v?Number(v).toLocaleString("ru-RU"):"0"}
@@ -173,6 +151,7 @@ socket.on("state", d=>{
 
   // step phase
   const step=d.step;
+  _lastStep=step;
   if(!step) return;
 
   // If new step started, reset submitted flag
@@ -189,9 +168,23 @@ socket.on("state", d=>{
   } else if(step.type==="input"){
     renderInput(step,d.stepIndex);
     if(!submitted) show("s-input");
-  } else if(step.type==="multi"){
-    renderMulti(step,d.stepIndex);
-    if(!submitted) show("s-multi");
+  }
+});
+
+
+socket.on("submit:rejected",({reason,activeStepId})=>{
+  if(reason==="step_changed"){
+    document.getElementById("sub-icon").textContent="⏭️";
+    document.getElementById("sub-text").textContent="Шаг уже переключили";
+    submitted=true;
+    show("s-sub");
+    return;
+  }
+  if(reason==="phase_closed"){
+    document.getElementById("sub-icon").textContent="⏳";
+    document.getElementById("sub-text").textContent="Приём ответов уже закрыт";
+    submitted=true;
+    show("s-sub");
   }
 });
 
@@ -261,36 +254,7 @@ function submitInput(){
   socket.emit("submit",{stepId:step.id,value:v});
 }
 
-function renderMulti(step,idx){
-  document.getElementById("m-phase").textContent=step.phase;
-  document.getElementById("m-num").textContent="ШАГ "+(idx+1)+" из "+totalSteps;
-  document.getElementById("m-text").textContent=step.text;
-  const list=document.getElementById("m-fields");list.innerHTML="";
-  step.fields.forEach(f=>{
-    const div=document.createElement("div");div.className="mfield";
-    div.innerHTML=`
-      <div class="mfield-top"><span class="mfield-icon">${f.icon}</span><span class="mfield-label">${f.label.toUpperCase()}</span></div>
-      <div class="mfield-wrap">
-        <input class="mfield-inp" id="mf-${f.key}" type="number" placeholder="0 ₽"/>
-        <span class="mfield-unit">₽</span>
-      </div>`;
-    list.appendChild(div);
-  });
-}
 
-function submitMulti(){
-  const step=getCurrentStep();if(!step)return;
-  const val={};
-  let hasAny=false;
-  step.fields.forEach(f=>{
-    const v=parseFloat(document.getElementById("mf-"+f.key).value)||0;
-    val[f.key]=v;if(v>0)hasAny=true;
-  });
-  socket.emit("submit",{stepId:step.id,value:val});
-}
-
-let _lastStep=null;
-socket.on("state",d=>{_lastStep=d.step});
 function getCurrentStep(){return _lastStep}
 document.getElementById("i-inp").addEventListener("keydown",e=>{if(e.key==="Enter")submitInput()});
 </script>

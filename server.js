@@ -2,11 +2,19 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const path = require("path");
+const fs = require("fs");
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 const PORT = process.env.PORT || 3000;
+
+const workflowStore = {};
+const workflowTemplates = [
+  { id: "tpl_daily_owner", name: "Ежедневный отчет собственнику", nodes:["TriggerNode","ReportNode","AiAnalysisNode","TelegramNode"] },
+  { id: "tpl_high_fc", name: "Высокий фудкост", nodes:["DataImportNode","MetricNode","ConditionNode","AlertNode","TaskNode","TelegramNode"] },
+  { id: "tpl_open_kitchen_photo", name: "Фото открытия кухни", nodes:["TriggerNode","TaskNode","PhotoCheckNode","ConditionNode","AlertNode","TelegramNode"] },
+];
 
 // ── Steps definition ───────────────────────────────────────────
 const STEPS = [
@@ -74,7 +82,35 @@ let state = {
   stepSubmissions: {}, // id -> submitted for current step
 };
 
+const SNAPSHOT_DIR = path.join(__dirname, "data");
+const SNAPSHOT_FILE = path.join(SNAPSHOT_DIR, "session-state.json");
+function persistState() {
+  try {
+    if (!fs.existsSync(SNAPSHOT_DIR)) fs.mkdirSync(SNAPSHOT_DIR, { recursive: true });
+    fs.writeFileSync(SNAPSHOT_FILE, JSON.stringify(state), "utf8");
+  } catch (e) { console.error("persistState error", e.message); }
+}
+function restoreState() {
+  try {
+    if (!fs.existsSync(SNAPSHOT_FILE)) return;
+    const raw = fs.readFileSync(SNAPSHOT_FILE, "utf8");
+    const saved = JSON.parse(raw);
+    if (saved && typeof saved === "object" && saved.participants) {
+      state = {
+        phase: saved.phase || "lobby",
+        stepIndex: Number.isInteger(saved.stepIndex) ? saved.stepIndex : -1,
+        showResults: !!saved.showResults,
+        participants: saved.participants || {},
+        stepSubmissions: saved.stepSubmissions || {},
+      };
+      console.log(`Restored session: ${Object.keys(state.participants).length} participants`);
+    }
+  } catch (e) { console.error("restoreState error", e.message); }
+}
+restoreState();
+
 function broadcast() {
+  persistState();
   const pub = buildPublic();
   io.emit("state", pub);
 }
@@ -115,8 +151,12 @@ function buildRevealData() {
   return Object.values(state.participants).map(p => {
     const d = p.data || {};
     const rev = parseFloat(d.vyruchka) || 0;
-    const fcPercentInput = parseFloat(d.fc_percent) || 0;
-    const seb = fcPercentInput > 0 ? (rev * fcPercentInput / 100) : (parseFloat(d.sebestoimost) || 0);
+    const rawFcInput = parseFloat(d.fc_percent) || 0;
+    const legacySebInput = parseFloat(d.sebestoimost) || 0;
+    // Backward compatibility: old clients could send себестоимость in ₽ into fc_percent field.
+    const fcPercentInput = rawFcInput > 0 && rawFcInput <= 100 ? rawFcInput : 0;
+    const sebFromPercent = fcPercentInput > 0 ? (rev * fcPercentInput / 100) : 0;
+    const seb = sebFromPercent > 0 ? sebFromPercent : (rawFcInput > 100 ? rawFcInput : legacySebInput);
     const por = parseFloat(d.porcha) || 0;
     const inv = parseFloat(d.inventar) || 0;
     const bra = parseFloat(d.brakerage) || 0;
@@ -141,7 +181,32 @@ function buildRevealData() {
       fc,
       control_method: p.stepAnswers[0] ?? null,
     };
-  }).sort((a, b) => b.fc - a.fc);
+  }).filter(r => (r.vyruchka + r.sebestoimost + r.porcha + r.inventar + r.brakerage + r.kompliment + r.personal) > 0)
+    .sort((a, b) => b.fc - a.fc);
+}
+
+
+
+function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function seedParticipants(count = 50) {
+  const cities = ["Москва", "СПб", "Казань", "Екатеринбург", "Новосибирск", "Краснодар"];
+  for (let i = 1; i <= count; i++) {
+    const id = `seed-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`;
+    const rev = randomInt(1200000, 6000000);
+    const fcPercent = randomInt(22, 34);
+    const seb = Math.round(rev * (fcPercent / 100));
+    const por = randomInt(15000, 180000);
+    const inv = randomInt(10000, 120000);
+    const bra = randomInt(5000, 70000);
+    const kom = randomInt(3000, 50000);
+    const per = randomInt(7000, 90000);
+    state.participants[id] = {
+      name: `Тест-ресторан ${i}`,
+      city: cities[i % cities.length],
+      data: { vyruchka: rev, fc_percent: fcPercent, sebestoimost: seb, porcha: por, inventar: inv, brakerage: bra, kompliment: kom, personal: per },
+      stepAnswers: { 0: randomInt(0, 3), 1: randomInt(0, 3), 9: randomInt(0, 3) },
+    };
+  }
 }
 
 
@@ -256,6 +321,7 @@ io.on("connection", socket => {
 
   socket.on("host:reset",      () => {
     state = { phase: "lobby", stepIndex: -1, showResults: false, participants: {}, stepSubmissions: {} };
+    try { if (fs.existsSync(SNAPSHOT_FILE)) fs.unlinkSync(SNAPSHOT_FILE); } catch (e) {}
     broadcast();
   });
 
@@ -269,6 +335,11 @@ io.on("connection", socket => {
 app.use(express.static(path.join(__dirname, "public")));
 app.get("/host",   (_, res) => res.sendFile(path.join(__dirname, "public", "host.html")));
 app.get("/reveal", (_, res) => res.sendFile(path.join(__dirname, "public", "reveal.html")));
+app.get("/workflows/:id/builder", (_, res) => res.sendFile(path.join(__dirname, "public", "builder.html")));
+app.get("/api/workflows/templates", (_, res) => res.json(workflowTemplates));
+app.post("/api/workflows/:id/builder", express.json(), (req, res) => { workflowStore[req.params.id] = req.body || {}; res.json({ ok: true }); });
+app.post("/api/workflows/:id/run-test", (req, res) => res.json({ status: "success", workflowId: req.params.id, executedNodes: (workflowStore[req.params.id]?.nodes || []).length }));
+app.get("/export", (_, res) => res.json({ savedAt: new Date().toISOString(), participantCount: Object.keys(state.participants).length, revealData: buildRevealData() }));
 app.get("*",       (_, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
 
 server.listen(PORT, () => console.log(`Live on port ${PORT}`));
