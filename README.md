@@ -65,3 +65,19 @@ npm run start
 ## Важно по загрузке файлов
 - В интерфейсе принимаются только Excel-файлы: `.xlsx` и `.xls`.
 - Попытка загрузить CSV вернет ошибку в preview API.
+
+
+## Deploy на Railway
+1. Создайте новый проект в Railway и подключите GitHub-репозиторий.
+2. Добавьте сервис **PostgreSQL** в том же проекте Railway.
+3. В переменных приложения задайте:
+   - `DATABASE_PROVIDER=postgresql`
+   - `DATABASE_URL=${{Postgres.DATABASE_URL}}`
+   - `SESSION_SECRET=<длинная-случайная-строка>`
+4. Railway автоматически выполнит build (`npm run build`) и start (`npm run start`) из `railway.json`.
+5. После первого деплоя выполните инициализацию БД одной командой в Railway Shell:
+   - `npm run db:push`
+6. При необходимости заполните тестовые данные:
+   - `npm run db:seed`
+
+> Для production на Railway рекомендуется PostgreSQL; SQLite в контейнере использовать не стоит, так как файловая БД неустойчива при пересоздании инстанса.
