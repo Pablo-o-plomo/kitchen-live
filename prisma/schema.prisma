@@ -1,0 +1,104 @@
+generator client { provider = "prisma-client-js" }
+
+datasource db {
+  provider = env("DATABASE_PROVIDER")
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole { admin restaurant_user }
+enum ChangeStatus { planned active cancelled }
+
+model User {
+  id           Int        @id @default(autoincrement())
+  username     String     @unique
+  passwordHash String
+  role         UserRole
+  restaurantId Int?
+  restaurant   Restaurant? @relation(fields: [restaurantId], references: [id])
+  createdAt    DateTime   @default(now())
+}
+
+model Restaurant {
+  id          Int        @id @default(autoincrement())
+  name        String     @unique
+  city        String
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  menuItems   MenuItem[]
+  priceChanges MenuPriceChange[]
+  uploads     MenuUpload[]
+  sales       SalesData[]
+  users       User[]
+}
+
+model MenuItem {
+  id              Int       @id @default(autoincrement())
+  restaurantId    Int
+  restaurant      Restaurant @relation(fields: [restaurantId], references: [id])
+  category        String
+  name            String
+  description     String?
+  costPrice       Float
+  salePrice       Float
+  markupRub       Float
+  markupPercent   Float
+  foodCostPercent Float
+  isActive        Boolean   @default(true)
+  startDate       DateTime
+  endDate         DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  priceChanges    MenuPriceChange[]
+  salesData       SalesData[]
+  @@unique([restaurantId, name])
+}
+
+model MenuPriceChange {
+  id                 Int          @id @default(autoincrement())
+  menuItemId         Int
+  menuItem           MenuItem     @relation(fields: [menuItemId], references: [id])
+  restaurantId       Int
+  restaurant         Restaurant   @relation(fields: [restaurantId], references: [id])
+  oldCostPrice       Float
+  newCostPrice       Float
+  oldSalePrice       Float
+  newSalePrice       Float
+  oldMarkupRub       Float
+  newMarkupRub       Float
+  oldFoodCostPercent Float
+  newFoodCostPercent Float
+  changeDate         DateTime
+  plannedDate        DateTime?
+  status             ChangeStatus
+  comment            String?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+}
+
+model MenuUpload {
+  id          Int       @id @default(autoincrement())
+  restaurantId Int
+  restaurant  Restaurant @relation(fields: [restaurantId], references: [id])
+  fileName    String
+  uploadDate  DateTime
+  status      String
+  importedRows Int
+  errorRows   Int
+  createdAt   DateTime @default(now())
+}
+
+model SalesData {
+  id          Int      @id @default(autoincrement())
+  restaurantId Int
+  restaurant  Restaurant @relation(fields: [restaurantId], references: [id])
+  menuItemId  Int
+  menuItem    MenuItem @relation(fields: [menuItemId], references: [id])
+  periodStart DateTime
+  periodEnd   DateTime
+  quantitySold Int
+  revenue     Float
+  totalCost   Float
+  totalMarkup Float
+  createdAt   DateTime @default(now())
+}
